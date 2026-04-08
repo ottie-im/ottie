@@ -4,7 +4,7 @@ import type { ChatMessage } from './store'
 import { cacheConversations, loadCachedConversations, cacheMessages, loadCachedMessages } from './cache'
 import {
   OttieSidebar, OttieChatHeader, OttieBubble, OttieApproval, OttieInput,
-  OttieContactPanel, OttieDecisionCard,
+  OttieContactPanel, OttieDecisionCard, OttieScreenNotification,
 } from '@ottie-im/ui'
 import type { ConversationItem } from '@ottie-im/ui'
 import type { SuggestedAction, DecisionRequest } from '@ottie-im/contracts'
@@ -61,6 +61,7 @@ export function MainLayout() {
     isSendingMessage, setIsSendingMessage,
     isLLMProcessing, setIsLLMProcessing,
     setGlobalError,
+    screenNotifications, addScreenNotification, removeScreenNotification,
   } = useAppStore()
 
   const [userSearchResults, setUserSearchResults] = useState<any[]>([])
@@ -122,9 +123,20 @@ export function MainLayout() {
           suggestedActions: decision.intent.suggestedActions,
         })
       })
-      return () => { unsubDraft(); unsubDecision?.() }
+      // Listen for screen notifications (Phase 4 — device awareness)
+      const unsubNotification = a.onNotification((event) => {
+        addScreenNotification({
+          id: `screen_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          type: event.type,
+          content: event.content,
+          sourceApp: event.sourceApp,
+          actionRequired: event.actionRequired,
+          timestamp: formatTime(event.timestamp),
+        })
+      })
+      return () => { unsubDraft(); unsubDecision?.(); unsubNotification() }
     } catch { return () => {} }
-  }, [setPendingApproval, setPendingDecision, setIsLLMProcessing])
+  }, [setPendingApproval, setPendingDecision, setIsLLMProcessing, addScreenNotification])
 
   // Listen for incoming messages → delegate to Agent for intent detection
   useEffect(() => {
@@ -474,6 +486,17 @@ export function MainLayout() {
                       🦦 Ottie 正在思考...
                     </div>
                   )}
+                  {screenNotifications.map(n => (
+                    <OttieScreenNotification
+                      key={n.id}
+                      type={n.type}
+                      content={n.content}
+                      sourceApp={n.sourceApp}
+                      actionRequired={n.actionRequired}
+                      timestamp={n.timestamp}
+                      onDismiss={() => removeScreenNotification(n.id)}
+                    />
+                  ))}
                   {pendingDecision && (
                     <OttieDecisionCard
                       senderName={pendingDecision.senderName}

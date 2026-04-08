@@ -59,6 +59,11 @@ interface AppState {
   presenceMap: Record<string, 'online' | 'offline' | 'unavailable'>
   setPresence: (userId: string, presence: 'online' | 'offline' | 'unavailable') => void
 
+  // Screen notifications
+  screenNotifications: ScreenNotification[]
+  addScreenNotification: (n: ScreenNotification) => void
+  removeScreenNotification: (id: string) => void
+
   // Contacts
   friends: Friend[]
   friendRequests: FriendRequest[]
@@ -86,6 +91,15 @@ export interface ChatMessage {
   mediaUrl?: string
   fileName?: string
   mimeType?: string
+}
+
+export interface ScreenNotification {
+  id: string
+  type: 'gui-popup' | 'cli-prompt' | 'screen-change' | 'user-action'
+  content: string
+  sourceApp?: string
+  actionRequired: boolean
+  timestamp: string
 }
 
 export interface PendingDecision {
@@ -159,6 +173,14 @@ export const useAppStore = create<AppState>((set) => ({
   presenceMap: {},
   setPresence: (userId, presence) => set((s) => ({
     presenceMap: { ...s.presenceMap, [userId]: presence },
+  })),
+
+  screenNotifications: [],
+  addScreenNotification: (n) => set((s) => ({
+    screenNotifications: [...s.screenNotifications.slice(-9), n], // keep last 10
+  })),
+  removeScreenNotification: (id) => set((s) => ({
+    screenNotifications: s.screenNotifications.filter(n => n.id !== id),
   })),
 
   friends: [],
