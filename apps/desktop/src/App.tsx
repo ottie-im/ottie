@@ -3,7 +3,16 @@ import { useAppStore } from './store'
 import { OttieLogin } from '@ottie-im/ui'
 import { MainLayout } from './MainLayout'
 import { SettingsView } from './SettingsView'
-import { login, register, startSync, setPresence } from './services'
+import { login, register, startSync, setPresence, configureLLM, isLLMEnabled } from './services'
+
+// Auto-configure LLM from environment variables
+const llmBaseUrl = import.meta.env.VITE_LLM_BASE_URL
+const llmApiKey = import.meta.env.VITE_LLM_API_KEY
+const llmModel = import.meta.env.VITE_LLM_MODEL
+if (llmBaseUrl && llmApiKey && llmModel) {
+  configureLLM({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel })
+  console.log(`🦦 Ottie LLM: ${llmModel} via ${llmBaseUrl}`)
+}
 
 export function App() {
   const { loggedIn, setLoggedIn, currentView } = useAppStore()
