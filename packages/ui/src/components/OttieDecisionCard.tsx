@@ -1,9 +1,5 @@
 import React from 'react'
-
-export interface SuggestedAction {
-  label: string
-  response: string
-}
+import type { SuggestedAction } from '@ottie-im/contracts'
 
 interface OttieDecisionCardProps {
   senderName: string
