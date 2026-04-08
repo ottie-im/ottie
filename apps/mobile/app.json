@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Ottie",
+    "slug": "ottie",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "ottie",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f0f2f5"
+    },
+    "ios": {
+      "bundleIdentifier": "com.ottie.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.ottie.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#25D366"
+      }
+    }
+  }
+}
