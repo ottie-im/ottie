@@ -3,16 +3,16 @@ import { useAppStore } from './store'
 import { OttieLogin, OttieToast, OttieConnectionBar } from '@ottie-im/ui'
 import { MainLayout } from './MainLayout'
 import { SettingsView } from './SettingsView'
-import { login, register, startSync, setPresence, configureLLM, tryAutoLogin } from './services'
+import { login, register, startSync, setPresence, tryAutoLogin, initAgent } from './services'
 
-// Auto-configure LLM from environment variables
-const llmBaseUrl = import.meta.env.VITE_LLM_BASE_URL
-const llmApiKey = import.meta.env.VITE_LLM_API_KEY
-const llmModel = import.meta.env.VITE_LLM_MODEL
-if (llmBaseUrl && llmApiKey && llmModel) {
-  configureLLM({ baseUrl: llmBaseUrl, apiKey: llmApiKey, model: llmModel })
-  console.log(`🦦 Ottie LLM: ${llmModel} via ${llmBaseUrl}`)
-}
+// Read LLM config from environment
+const llmConfig = (() => {
+  const baseUrl = import.meta.env.VITE_LLM_BASE_URL
+  const apiKey = import.meta.env.VITE_LLM_API_KEY
+  const model = import.meta.env.VITE_LLM_MODEL
+  if (baseUrl && apiKey && model) return { baseUrl, apiKey, model }
+  return undefined
+})()
 
 export function App() {
   const {
@@ -32,12 +32,11 @@ export function App() {
         setIsSyncing(true)
         try {
           await startSync()
+          initAgent(llmConfig) // Agent 通过接口初始化，LLM 配置传给 Agent
           setPresence('online').catch(() => {})
           setConnectionStatus('connected')
           setLoggedIn(userId)
-        } catch {
-          // Auto-login failed silently
-        }
+        } catch {}
         setIsSyncing(false)
       }
       setAutoLoginDone(true)
@@ -51,22 +50,17 @@ export function App() {
       const userId = await login(username, password)
       setIsSyncing(true)
       await startSync()
+      initAgent(llmConfig) // Agent 初始化
       setPresence('online').catch(() => {})
       setConnectionStatus('connected')
       setIsSyncing(false)
       setLoggedIn(userId)
     } catch (err: any) {
       const msg = err.data?.error ?? err.message ?? '登录失败'
-      if (msg.includes('fetch failed') || msg.includes('Failed to fetch')) {
-        setError('无法连接到服务器，请检查网络')
-      } else if (msg.includes('Invalid username or password') || msg.includes('M_FORBIDDEN')) {
-        setError('用户名或密码错误')
-      } else {
-        setError(msg)
-      }
-    } finally {
-      setLoading(false)
-    }
+      if (msg.includes('fetch failed') || msg.includes('Failed to fetch')) setError('无法连接到服务器，请检查网络')
+      else if (msg.includes('Invalid username or password') || msg.includes('M_FORBIDDEN')) setError('用户名或密码错误')
+      else setError(msg)
+    } finally { setLoading(false) }
   }
 
   const handleRegister = async (username: string, password: string) => {
@@ -76,25 +70,19 @@ export function App() {
       const userId = await register(username, password)
       setIsSyncing(true)
       await startSync()
+      initAgent(llmConfig)
       setPresence('online').catch(() => {})
       setConnectionStatus('connected')
       setIsSyncing(false)
       setLoggedIn(userId)
     } catch (err: any) {
       const msg = err.data?.error ?? err.message ?? '注册失败'
-      if (msg.includes('M_USER_IN_USE')) {
-        setError('用户名已被占用')
-      } else if (msg.includes('fetch failed')) {
-        setError('无法连接到服务器，请检查网络')
-      } else {
-        setError(msg)
-      }
-    } finally {
-      setLoading(false)
-    }
+      if (msg.includes('M_USER_IN_USE')) setError('用户名已被占用')
+      else if (msg.includes('fetch failed')) setError('无法连接到服务器，请检查网络')
+      else setError(msg)
+    } finally { setLoading(false) }
   }
 
-  // Show loading during auto-login
   if (!autoLoginDone) {
     return (
       <div style={{
@@ -109,15 +97,8 @@ export function App() {
 
   return (
     <>
-      {/* Global connection status bar (only show when logged in) */}
       {loggedIn && <OttieConnectionBar status={connectionStatus} />}
-
-      {/* Global error toast */}
-      {globalError && (
-        <OttieToast message={globalError} type="error" onDismiss={() => setGlobalError(null)} />
-      )}
-
-      {/* Main content */}
+      {globalError && <OttieToast message={globalError} type="error" onDismiss={() => setGlobalError(null)} />}
       {!loggedIn ? (
         <OttieLogin onLogin={handleLogin} onRegister={handleRegister} loading={loading} error={error} />
       ) : currentView === 'settings' ? (

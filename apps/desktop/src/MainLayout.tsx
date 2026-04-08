@@ -6,14 +6,15 @@ import {
   OttieSidebar, OttieChatHeader, OttieBubble, OttieApproval, OttieInput,
   OttieContactPanel, OttieDecisionCard,
 } from '@ottie-im/ui'
-import type { ConversationItem, SuggestedAction } from '@ottie-im/ui'
+import type { ConversationItem } from '@ottie-im/ui'
+import type { SuggestedAction, DecisionRequest } from '@ottie-im/contracts'
 import {
   sendMessage, getMessages, onMessage, getRooms, getFriends,
-  getSession, rewriteIntent, searchUsers, sendFriendRequest,
+  getSession, getAgent, searchUsers, sendFriendRequest,
   respondToFriendRequest, sendTyping, onTyping,
   onPresenceChange, getPresence, sendReadReceipt, onReadReceipt,
   uploadAndSendImage, uploadAndSendFile, mxcToHttp,
-  searchMessages, detectIntent, composeReply,
+  searchMessages,
 } from './services'
 
 function formatTime(ts?: number): string {
@@ -97,37 +98,55 @@ export function MainLayout() {
     }
   }, [messages, activeConversationId])
 
-  // Listen for incoming messages + trigger intent detection
+  // Wire up Agent callbacks (onDraft → show approval, onDecision → show decision card)
+  useEffect(() => {
+    try {
+      const a = getAgent()
+      const unsubDraft = a.onDraft((draft) => {
+        setPendingApproval({
+          requestId: draft.id,
+          draft: draft.draft,
+          originalIntent: draft.originalIntent,
+          targetRoom: draft.targetRoom,
+        })
+        setIsLLMProcessing(false)
+      })
+      const unsubDecision = a.onDecision?.((decision: DecisionRequest) => {
+        setPendingDecision({
+          messageId: decision.messageId,
+          roomId: decision.roomId,
+          senderName: decision.senderName,
+          originalMessage: decision.originalMessage,
+          intentType: decision.intent.type,
+          intentSummary: decision.intent.summary,
+          suggestedActions: decision.intent.suggestedActions,
+        })
+      })
+      return () => { unsubDraft(); unsubDecision?.() }
+    } catch { return () => {} }
+  }, [setPendingApproval, setPendingDecision, setIsLLMProcessing])
+
+  // Listen for incoming messages → delegate to Agent for intent detection
   useEffect(() => {
     const unsub = onMessage(async (msg) => {
       if (msg.roomId === activeConversationId && msg.content.type === 'text') {
-        const body = msg.content.body
         addMessage({
-          id: msg.id,
-          type: 'incoming',
-          body,
-          time: formatTime(msg.timestamp),
-          senderId: msg.senderId,
+          id: msg.id, type: 'incoming', body: msg.content.body,
+          time: formatTime(msg.timestamp), senderId: msg.senderId,
         })
         sendReadReceipt(msg.roomId, msg.id).catch(() => {})
 
-        // Receiving-side Agent: detect intent and show decision card
-        const senderName = conversations.find(c => c.id === msg.roomId)?.name ?? msg.senderId
-        const intent = await detectIntent(body, senderName)
-        setPendingDecision({
-          messageId: msg.id,
-          roomId: msg.roomId,
-          senderName,
-          originalMessage: body,
-          intentType: intent.type,
-          intentSummary: intent.summary,
-          suggestedActions: intent.suggestedActions,
-        })
+        // Delegate to Agent (not IM layer!) for intent detection
+        try {
+          const a = getAgent()
+          const senderName = conversations.find(c => c.id === msg.roomId)?.name ?? msg.senderId
+          if (a.onIncomingMessage) await a.onIncomingMessage(msg, senderName)
+        } catch {}
       }
       refreshConversations()
     })
     return unsub
-  }, [activeConversationId, addMessage, refreshConversations])
+  }, [activeConversationId, addMessage, refreshConversations, conversations])
 
   // Listen for typing indicators
   useEffect(() => {
@@ -227,25 +246,29 @@ export function MainLayout() {
 
     addMessage({ id: `intent_${Date.now()}`, type: 'intent', body: text, time: formatTime() })
 
+    // Delegate to Agent — Agent will call onDraft callback with the rewritten draft
     setIsLLMProcessing(true)
     try {
-      const rewritten = await rewriteIntent(text)
-      setPendingApproval({
-        requestId: `approval_${Date.now()}`,
-        draft: rewritten,
-        originalIntent: text,
-        targetRoom: activeConversationId,
+      const a = getAgent()
+      await a.onMessage({
+        id: `input_${Date.now()}`,
+        roomId: activeConversationId,
+        senderId: userId ?? '',
+        timestamp: Date.now(),
+        type: 'text',
+        content: { type: 'text', body: text },
       })
+      // onDraft callback (wired in useEffect above) will setPendingApproval + setIsLLMProcessing(false)
     } catch {
-      // LLM failed, fallback to original text
+      // Agent failed — fallback: show original text for approval
       setPendingApproval({
         requestId: `approval_${Date.now()}`,
         draft: text,
         originalIntent: text,
         targetRoom: activeConversationId,
       })
-    } finally {
       setIsLLMProcessing(false)
+    } finally {
     }
   }
 
@@ -291,11 +314,16 @@ export function MainLayout() {
 
   const handleReject = () => setPendingApproval(null)
 
-  // Receiving-side: user picks an action from the decision card
+  // Receiving-side: user picks an action from the decision card → delegate to Agent
   const handleDecisionAction = async (action: SuggestedAction) => {
     if (!pendingDecision) return
-    const reply = await composeReply(pendingDecision.originalMessage, action.response)
-    // Show as approval before sending
+    let reply = action.response
+    try {
+      const a = getAgent()
+      if (a.onDecisionAction) {
+        reply = await a.onDecisionAction(pendingDecision.originalMessage, action)
+      }
+    } catch {}
     setPendingApproval({
       requestId: `reply_${Date.now()}`,
       draft: reply,

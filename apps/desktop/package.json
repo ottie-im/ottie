@@ -7,10 +7,10 @@
     "@ottie-im/contracts": "*",
     "@ottie-im/matrix": "*",
     "@ottie-im/ui": "*",
-    "openai": "^6.33.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "zustand": "^5.0.0"
+    "zustand": "^5.0.0",
+    "@ottie-im/agent-adapter": "file:../../../ottie-agent/packages/adapter"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

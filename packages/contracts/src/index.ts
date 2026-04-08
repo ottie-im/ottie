@@ -207,6 +207,27 @@ export type ApprovalDecision =
   | { action: 'edit'; newContent: string }
   | { action: 'reject' }
 
+// ---- 接收方意图识别 ----
+
+export interface DetectedIntent {
+  type: 'invitation' | 'question' | 'request' | 'info' | 'greeting' | 'general'
+  summary: string
+  suggestedActions: SuggestedAction[]
+}
+
+export interface SuggestedAction {
+  label: string
+  response: string
+}
+
+export interface DecisionRequest {
+  messageId: string
+  roomId: string
+  senderName: string
+  originalMessage: string
+  intent: DetectedIntent
+}
+
 // ---- Agent 适配接口 ----
 // 任何 Agent 只要实现这个接口，就能接入 Ottie
 // OpenClaw 是默认实现，但用户可以换成 LangGraph、Google ADK、或自己写的
@@ -217,14 +238,23 @@ export interface OttieAgentAdapter {
   name: string
   getAgentCard(): AgentCard
 
-  // IM → Agent：收到消息
+  // IM → Agent：用户输入（发送方改写 → 审批）
   onMessage(msg: OttieMessage): Promise<void>
 
-  // Agent → IM：拟好消息推给用户审批
+  // IM → Agent：收到对方消息（接收方意图识别 → 决策）
+  onIncomingMessage?(msg: OttieMessage, senderName: string): Promise<void>
+
+  // Agent → IM：拟好消息推给用户审批（发送方）
   onDraft: (callback: (draft: ApprovalRequest) => void) => Unsubscribe
+
+  // Agent → IM：识别到意图推给用户决策（接收方）
+  onDecision?: (callback: (decision: DecisionRequest) => void) => Unsubscribe
 
   // IM → Agent：用户审批结果
   onApproval(requestId: string, decision: ApprovalDecision): Promise<OttieMessage | null>
+
+  // IM → Agent：用户选择了一个决策动作（接收方）
+  onDecisionAction?(originalMessage: string, chosenAction: SuggestedAction): Promise<string>
 
   // Agent → IM：通知推送（设备弹窗、CLI变动等）
   onNotification: (callback: (event: OttieScreenEvent) => void) => Unsubscribe
@@ -236,6 +266,9 @@ export interface OttieAgentAdapter {
   // 记忆相关（可选）
   getMemory?(): Promise<MemoryIndex>
   queryMemory?(query: string): Promise<MemoryEntry[]>
+
+  // LLM 配置（可选）
+  configureLLM?(config: { baseUrl: string; apiKey: string; model: string }): void
 
   // 生命周期
   start(): Promise<void>
