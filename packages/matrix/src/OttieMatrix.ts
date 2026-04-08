@@ -590,7 +590,7 @@ export class OttieMatrix {
           room_events: {
             search_term: query,
             order_by: 'recent',
-            ...(roomId ? { filter: { rooms: [roomId] } } : {}),
+            filter: roomId ? { rooms: [roomId] } : {},
           },
         },
       }
