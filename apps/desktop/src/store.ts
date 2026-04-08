@@ -27,9 +27,13 @@ interface AppState {
   setMessages: (msgs: ChatMessage[]) => void
   updateMessageStatus: (id: string, status: 'sent' | 'read') => void
 
-  // Approval
+  // Approval (sending side)
   pendingApproval: PendingApproval | null
   setPendingApproval: (approval: PendingApproval | null) => void
+
+  // Decision (receiving side)
+  pendingDecision: PendingDecision | null
+  setPendingDecision: (decision: PendingDecision | null) => void
 
   // Typing
   typingUsers: Record<string, string[]> // roomId → userIds
@@ -68,6 +72,16 @@ export interface ChatMessage {
   mimeType?: string
 }
 
+export interface PendingDecision {
+  messageId: string
+  roomId: string
+  senderName: string
+  originalMessage: string
+  intentType: string
+  intentSummary: string
+  suggestedActions: { label: string; response: string }[]
+}
+
 export interface PendingApproval {
   requestId: string
   draft: string
@@ -104,6 +118,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   pendingApproval: null,
   setPendingApproval: (pendingApproval) => set({ pendingApproval }),
+
+  pendingDecision: null,
+  setPendingDecision: (pendingDecision) => set({ pendingDecision }),
 
   typingUsers: {},
   setTypingUsers: (roomId, userIds) => set((s) => ({

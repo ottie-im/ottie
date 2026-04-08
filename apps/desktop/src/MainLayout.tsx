@@ -3,16 +3,16 @@ import { useAppStore } from './store'
 import type { ChatMessage } from './store'
 import {
   OttieSidebar, OttieChatHeader, OttieBubble, OttieApproval, OttieInput,
-  OttieContactPanel,
+  OttieContactPanel, OttieDecisionCard,
 } from '@ottie-im/ui'
-import type { ConversationItem } from '@ottie-im/ui'
+import type { ConversationItem, SuggestedAction } from '@ottie-im/ui'
 import {
   sendMessage, getMessages, onMessage, getRooms, getFriends,
   getSession, rewriteIntent, searchUsers, sendFriendRequest,
   respondToFriendRequest, sendTyping, onTyping,
   onPresenceChange, getPresence, sendReadReceipt, onReadReceipt,
   uploadAndSendImage, uploadAndSendFile, mxcToHttp,
-  searchMessages,
+  searchMessages, detectIntent, composeReply,
 } from './services'
 
 function formatTime(ts?: number): string {
@@ -55,6 +55,7 @@ export function MainLayout() {
     typingUsers, setTypingUsers,
     presenceMap, setPresence: setPresenceState,
     friends, setFriends,
+    pendingDecision, setPendingDecision,
   } = useAppStore()
 
   const [userSearchResults, setUserSearchResults] = useState<any[]>([])
@@ -64,7 +65,7 @@ export function MainLayout() {
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, pendingApproval])
+  }, [messages, pendingApproval, pendingDecision])
 
   // Load conversations
   const refreshConversations = useCallback(() => {
@@ -78,19 +79,32 @@ export function MainLayout() {
     return () => clearInterval(interval)
   }, [refreshConversations])
 
-  // Listen for incoming messages
+  // Listen for incoming messages + trigger intent detection
   useEffect(() => {
-    const unsub = onMessage((msg) => {
+    const unsub = onMessage(async (msg) => {
       if (msg.roomId === activeConversationId && msg.content.type === 'text') {
+        const body = msg.content.body
         addMessage({
           id: msg.id,
           type: 'incoming',
-          body: msg.content.body,
+          body,
           time: formatTime(msg.timestamp),
           senderId: msg.senderId,
         })
-        // Send read receipt for incoming message
         sendReadReceipt(msg.roomId, msg.id).catch(() => {})
+
+        // Receiving-side Agent: detect intent and show decision card
+        const senderName = conversations.find(c => c.id === msg.roomId)?.name ?? msg.senderId
+        const intent = await detectIntent(body, senderName)
+        setPendingDecision({
+          messageId: msg.id,
+          roomId: msg.roomId,
+          senderName,
+          originalMessage: body,
+          intentType: intent.type,
+          intentSummary: intent.summary,
+          suggestedActions: intent.suggestedActions,
+        })
       }
       refreshConversations()
     })
@@ -181,14 +195,13 @@ export function MainLayout() {
     }, 3000)
   }
 
-  const handleSend = (text: string) => {
+  const handleSend = async (text: string) => {
     if (!activeConversationId) return
-    // Stop typing
     sendTyping(activeConversationId, false).catch(() => {})
 
     addMessage({ id: `intent_${Date.now()}`, type: 'intent', body: text, time: formatTime() })
 
-    const rewritten = rewriteIntent(text)
+    const rewritten = await rewriteIntent(text)
     setPendingApproval({
       requestId: `approval_${Date.now()}`,
       draft: rewritten,
@@ -235,6 +248,25 @@ export function MainLayout() {
   }
 
   const handleReject = () => setPendingApproval(null)
+
+  // Receiving-side: user picks an action from the decision card
+  const handleDecisionAction = async (action: SuggestedAction) => {
+    if (!pendingDecision) return
+    const reply = await composeReply(pendingDecision.originalMessage, action.response)
+    // Show as approval before sending
+    setPendingApproval({
+      requestId: `reply_${Date.now()}`,
+      draft: reply,
+      originalIntent: `回复 ${pendingDecision.senderName}：${action.label}`,
+      targetRoom: pendingDecision.roomId,
+    })
+    setPendingDecision(null)
+  }
+
+  const handleDecisionCustomReply = () => {
+    // Dismiss decision card, let user type freely
+    setPendingDecision(null)
+  }
 
   // Contact panel handlers
   const handleUserSearch = async (query: string) => {
@@ -354,6 +386,17 @@ export function MainLayout() {
                       fileName={msg.fileName}
                     />
                   ))}
+                  {pendingDecision && (
+                    <OttieDecisionCard
+                      senderName={pendingDecision.senderName}
+                      originalMessage={pendingDecision.originalMessage}
+                      intentSummary={pendingDecision.intentSummary}
+                      intentType={pendingDecision.intentType}
+                      actions={pendingDecision.suggestedActions}
+                      onAction={handleDecisionAction}
+                      onCustomReply={handleDecisionCustomReply}
+                    />
+                  )}
                   {pendingApproval && (
                     <OttieApproval
                       draft={pendingApproval.draft}
