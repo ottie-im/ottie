@@ -65,9 +65,21 @@ export function OttieContactPanel({
         {/* Friends tab */}
         {tab === 'friends' && (
           friends.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', marginTop: '40px' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>👤</div>
-              还没有好友
+            <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', marginTop: '40px', padding: '0 16px' }}>
+              <div style={{ fontSize: '40px', marginBottom: '12px' }}>👤</div>
+              <div style={{ fontSize: '14px', marginBottom: '12px', lineHeight: '1.5' }}>
+                还没有好友<br />点击"添加"标签搜索用户
+              </div>
+              <button
+                onClick={() => setTab('search')}
+                style={{
+                  background: 'var(--ottie-green)', color: '#fff', border: 'none',
+                  borderRadius: '8px', padding: '8px 20px', fontSize: '13px', fontWeight: 500,
+                  cursor: 'pointer', fontFamily: 'var(--font-family)',
+                }}
+              >
+                搜索添加好友
+              </button>
             </div>
           ) : (
             Array.from(grouped.entries()).map(([group, members]) => (

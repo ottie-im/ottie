@@ -12,9 +12,15 @@ export function OttieInput({ onSend, onAttach, placeholder = '跟 Ottie 说...',
   const [text, setText] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const MAX_LENGTH = 5000
+
   const handleSend = () => {
     const trimmed = text.trim()
     if (!trimmed) return
+    if (trimmed.length > MAX_LENGTH) {
+      alert(`消息太长了（${trimmed.length}/${MAX_LENGTH}）`)
+      return
+    }
     onSend(trimmed)
     setText('')
   }
@@ -26,9 +32,15 @@ export function OttieInput({ onSend, onAttach, placeholder = '跟 Ottie 说...',
     }
   }
 
+  const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file && onAttach) {
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`文件太大（${(file.size / 1024 / 1024).toFixed(1)}MB），最大 50MB`)
+        return
+      }
       onAttach(file)
     }
     if (fileRef.current) fileRef.current.value = ''

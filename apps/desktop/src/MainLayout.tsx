@@ -393,6 +393,15 @@ export function MainLayout() {
                 </div>
               ) : (
                 <>
+                  {messages.length === 0 && !pendingApproval && !pendingDecision && !isLLMProcessing && (
+                    <div style={{
+                      textAlign: 'center', color: 'var(--text-tertiary)',
+                      fontSize: '14px', padding: '40px 0',
+                    }}>
+                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>💬</div>
+                      还没有消息，说点什么吧
+                    </div>
+                  )}
                   {messages.map(msg => (
                     <OttieBubble
                       key={msg.id}
@@ -440,7 +449,7 @@ export function MainLayout() {
             </div>
 
             <div onKeyDown={handleInputChange}>
-              <OttieInput onSend={handleSend} onAttach={handleAttach} />
+              <OttieInput onSend={handleSend} onAttach={handleAttach} disabled={isSendingMessage || isLLMProcessing} />
             </div>
           </>
         ) : (
@@ -448,9 +457,28 @@ export function MainLayout() {
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'var(--text-secondary)', fontFamily: 'var(--font-family)',
           }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🦦</div>
-              <div style={{ fontSize: '16px' }}>选择一个聊天或添加好友开始对话</div>
+            <div style={{ textAlign: 'center', maxWidth: '300px' }}>
+              <div style={{ fontSize: '64px', marginBottom: '16px' }}>🦦</div>
+              <div style={{ fontSize: '18px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                欢迎使用 Ottie
+              </div>
+              <div style={{ fontSize: '14px', lineHeight: '1.5', marginBottom: '16px' }}>
+                {conversations.length === 0
+                  ? '点击左上角 👤 联系人图标，搜索并添加好友开始聊天'
+                  : '选择左侧的聊天开始对话'}
+              </div>
+              {conversations.length === 0 && (
+                <button
+                  onClick={() => setSidebarView('contacts')}
+                  style={{
+                    background: 'var(--ottie-green)', color: '#fff', border: 'none',
+                    borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: 500,
+                    cursor: 'pointer', fontFamily: 'var(--font-family)',
+                  }}
+                >
+                  添加好友
+                </button>
+              )}
             </div>
           </div>
         )}

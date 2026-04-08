@@ -23,6 +23,8 @@ const baseStyle: React.CSSProperties = {
   lineHeight: '1.45',
   fontFamily: 'var(--font-family)',
   position: 'relative',
+  wordBreak: 'break-word',
+  overflowWrap: 'break-word',
 }
 
 const styles: Record<BubbleType, React.CSSProperties> = {
