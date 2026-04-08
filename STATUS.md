@@ -77,22 +77,32 @@ VITE_LLM_MODEL=claude-sonnet-4-20250514
 支持：OpenAI、AIHubMix 中转、Ollama 本地、任何 OpenAI 兼容端点。
 不配置 = 规则引擎降级。
 
+## 已完成的额外工作
+
+- [x] P0: 服务器地址可配置（VITE_MATRIX_URL 环境变量）
+- [x] P0: SOUL.md 人格文件
+- [x] P0-P2: 产品加固（错误处理/重连/缓存/loading/空状态）
+- [x] 架构修正（Agent 逻辑从 IM 层移回 adapter）
+- [x] Tauri v2 打包（.dmg 5.8MB）
+
 ## 下一步
 
-### 近期（可演示产品）
-- [ ] 安装 Rust + Tauri v2 壳 → .dmg/.exe 安装包
-- [ ] 域名 + VPS → 公网部署
+### 待用户操作（跳过，等准备好再做）
+- [ ] 买域名（如 ottie.app）
+- [ ] 租 VPS（2C4G，推荐 Hetzner/Vultr/DigitalOcean）
+- [ ] 部署 Tuwunel 到公网（改 VITE_MATRIX_URL 即可连接）
+- [ ] 配置 Caddy TLS（server 仓库的 Caddyfile 已准备好）
+
+### 可以继续做的
 - [ ] Google OIDC 登录
 - [ ] 端到端加密（Matrix E2EE）
-- [ ] 离线缓存 + 断网重连
-- [ ] 推送通知
-- [ ] 错误处理完善（网络错误、超时）
-
-### 中期
 - [ ] 移动端 App（React Native）
 - [ ] 群聊
-- [ ] QR 码加好友
+- [ ] QR 码 + 链接邀请加好友
 - [ ] 消息引用回复
+- [ ] A2A 协议接入（@a2a-js/sdk）
+- [ ] MCP 工具调用
+- [ ] Windows/Linux 打包
 - [ ] 图片压缩/缩略图
 
 ### 长期
