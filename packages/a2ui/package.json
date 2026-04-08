@@ -6,5 +6,12 @@
     "@ottie-im/contracts": "*",
     "@ottie-im/ui": "*"
   },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "react": "^19.0.0",
+    "@types/react": "^19.0.0"
+  },
   "scripts": { "build": "tsc", "test": "vitest" }
 }
