@@ -10,7 +10,7 @@
 | Phase 0: 服务器 | ✅ 完成（在 server 仓库） | 2026-04-07 |
 | Phase 1: 接口 + 通信层 | ✅ 完成 | 2026-04-08 |
 | Phase 2: 默认 Agent | ✅ 完成（在 ottie-agent 仓库） | 2026-04-08 |
-| Phase 3: 界面层 | ⬜ 未开始 | |
+| Phase 3: 界面层 | 🔨 进行中 | |
 | Phase 4: 设备感知 | ⬜ 未开始 | |
 | Phase 5: 生态接入 | ⬜ 未开始 | |
 
@@ -28,38 +28,76 @@
 - [x] 好友分组 + 黑名单
 - [x] 9/9 集成测试通过（连接 localhost:8008 Tuwunel）
 
-## 下一步：Phase 3 — 界面层
+### 设计规范
+- [x] DESIGN.md — 完整 9 section 设计规范（WhatsApp 风格、明亮、绿色调）
+- [x] references/awesome-design-md/ — DESIGN.md 格式参考
 
-### 待确认
-- [ ] 先做桌面端（Tauri v2 + React）还是移动端（React Native）？
-- [ ] 导航栏 tab 设计？
+## Phase 3 — 界面层（当前）
 
-### Step 3.1 — packages/ui/（组件库）
-- [ ] OttieBubble — 聊天气泡
-- [ ] OttieInput — 输入框
-- [ ] OttieApproval — 审批卡片
-- [ ] OttieFriendList — 好友列表
-- [ ] OttieChat — 聊天页面
-- [ ] OttieLogin — 登录页
+### 已确认的需求
+- 先做桌面端（Tauri v2 + React）✅
+- 明亮模式，WhatsApp 风格，绿色调 ✅
+- 不用紫色，不用暗色模式 ✅
+- 所有 UI 遵循 DESIGN.md ✅
+- 基础功能优先，UI 后续迭代 ✅
 
-### Step 3.2 — apps/desktop/ 或 apps/mobile/
-- [ ] 搭建 App 框架
-- [ ] 接入 OttieMatrix + OttieAgentAdapter
-- [ ] 跑通完整链路：登录 → 加好友 → 输入意图 → 改写 → 审批 → 发送 → 对方收到
+### Step 3.1 — packages/ui/（共享组件库）
+技术栈：React + TypeScript + CSS Modules（或 Tailwind）
 
-### Step 3.3 — Agent 切换页面
-- [ ] 设置里加入口，UI 先到位
+- [ ] OttieBubble — 聊天气泡（outgoing/incoming/intent 三种）
+- [ ] OttieApproval — 审批卡片（批准/编辑/拒绝）
+- [ ] OttieInput — 输入框 + 发送按钮
+- [ ] OttieSidebar — 侧边栏（会话列表 + 搜索）
+- [ ] OttieChatHeader — 聊天头部（头像 + 名字 + 状态）
+- [ ] OttieAvatar — 头像组件（图片/首字母回退）
+- [ ] OttieFriendRequest — 好友请求卡片
+- [ ] OttieLogin — 登录页面
+
+### Step 3.2 — apps/desktop/（桌面端 App）
+技术栈：Tauri v2 + React + Vite
+
+- [ ] 初始化 Tauri v2 项目
+- [ ] 搭建 React + Vite 前端
+- [ ] 集成 packages/ui 组件
+- [ ] 接入 OttieMatrix（登录、消息收发、好友）
+- [ ] 接入 OttieAgentAdapter（改写、审批）
+- [ ] 状态管理（Zustand）
+- [ ] 路由：登录页 → 主界面（侧边栏 + 聊天）
+
+### Step 3.3 — 端到端验证
+- [ ] 登录 → 搜索用户 → 发好友请求 → 对方接受
+- [ ] 输入意图 → Agent 改写 → 审批卡片 → 批准/编辑/拒绝 → 发送
+- [ ] 对方收到消息 → 显示在聊天流中
+- [ ] 消息撤回、拉黑
 
 ## 如何继续开发
 
 ```bash
+# 1. 确保 Tuwunel 在跑
+cd ~/Developer/ottie/server && docker compose up -d
+
+# 2. 进入主仓库开发
 cd ~/Developer/ottie/ottie
 claude
-> 读 STATUS.md 和 CLAUDE.md，继续 Phase 3
+> 读 STATUS.md、CLAUDE.md 和 DESIGN.md，继续 Phase 3
+```
+
+## 跨仓库依赖
+
+```
+ottie/packages/contracts/    ← 类型定义（所有仓库引用）
+ottie/packages/matrix/       ← Matrix 通信（依赖 contracts）
+ottie/packages/ui/           ← UI 组件（依赖 contracts）
+ottie/apps/desktop/          ← 桌面端（依赖 ui + matrix + contracts）
+                               ↓
+ottie-agent/packages/adapter/ ← Agent 适配器（依赖 contracts，本地路径引用）
+                               ↓
+server/                       ← Tuwunel 服务器（独立，localhost:8008）
 ```
 
 ## 本地环境要求
 
 - Node.js 22+, npm 11+
-- Tuwunel 跑在 localhost:8008（启动：cd ../server && docker compose up -d）
-- 注册 token: ottie-dev-token
+- Docker（运行 Tuwunel）
+- Rust 工具链（Tauri v2 需要，`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`）
+- Tuwunel 跑在 localhost:8008（注册 token: `ottie-dev-token`）
