@@ -2,7 +2,7 @@
   "name": "@ottie-im/ui",
   "version": "0.1.0",
   "main": "src/index.ts",
-  "dependencies": { "@ottie-im/contracts": "workspace:*" },
+  "dependencies": { "@ottie-im/contracts": "*" },
   "devDependencies": { "react": "^19.0.0", "@types/react": "^19.0.0" },
   "scripts": { "build": "tsc", "dev": "storybook dev", "test": "vitest" }
 }

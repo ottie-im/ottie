@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "main": "src/index.ts",
   "dependencies": {
-    "@ottie-im/contracts": "workspace:*",
-    "@ottie-im/ui": "workspace:*"
+    "@ottie-im/contracts": "*",
+    "@ottie-im/ui": "*"
   },
   "scripts": { "build": "tsc", "test": "vitest" }
 }

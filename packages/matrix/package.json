@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "main": "src/index.ts",
   "dependencies": {
-    "@ottie-im/contracts": "workspace:*",
-    "matrix-js-sdk": "^34.0.0"
+    "@ottie-im/contracts": "*",
+    "matrix-js-sdk": "^34.13.0"
   },
-  "scripts": { "build": "tsc", "test": "vitest" }
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.3"
+  }
 }

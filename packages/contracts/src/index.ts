@@ -110,6 +110,48 @@ export interface DeviceCommand {
   requireApproval: boolean
 }
 
+// ---- 好友相关 ----
+
+export interface FriendRequest {
+  id: string
+  from: string                    // Matrix User ID, e.g. @alice:localhost
+  to: string
+  timestamp: number
+  message?: string                // 验证消息
+  status: 'pending' | 'accepted' | 'rejected'
+}
+
+export interface Friend {
+  userId: string
+  displayName: string
+  avatarUrl?: string
+  roomId: string                  // 1v1 私聊房间
+  addedAt: number
+  group?: string                  // 好友分组名
+}
+
+export interface FriendGroup {
+  name: string
+  memberIds: string[]             // userId 列表
+}
+
+// ---- 黑名单相关 ----
+
+export interface BlockedUser {
+  userId: string
+  blockedAt: number
+  reason?: string
+}
+
+// ---- 消息撤回相关 ----
+
+export interface MessageRecall {
+  messageId: string
+  roomId: string
+  recalledBy: string
+  timestamp: number
+}
+
 // ---- 用户 & Agent 相关 ----
 
 export interface OttieUser {
@@ -118,6 +160,9 @@ export interface OttieUser {
   avatarUrl?: string
   agentCard?: AgentCard
   devices: OttieDevice[]
+  friends?: Friend[]
+  friendGroups?: FriendGroup[]
+  blockedUsers?: BlockedUser[]
 }
 
 export interface AgentCard {
