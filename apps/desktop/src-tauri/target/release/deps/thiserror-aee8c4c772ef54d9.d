@@ -1,0 +1,14 @@
+/Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/deps/thiserror-aee8c4c772ef54d9.d: /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/build/thiserror-5fe1c5a756f13b63/out/private.rs
+
+/Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/deps/libthiserror-aee8c4c772ef54d9.rlib: /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/build/thiserror-5fe1c5a756f13b63/out/private.rs
+
+/Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/deps/libthiserror-aee8c4c772ef54d9.rmeta: /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/build/thiserror-5fe1c5a756f13b63/out/private.rs
+
+/Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs:
+/Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs:
+/Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs:
+/Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs:
+/Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs:
+/Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/build/thiserror-5fe1c5a756f13b63/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/build/thiserror-5fe1c5a756f13b63/out

@@ -1,0 +1,5 @@
+/Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/build/getrandom-77801760787c2898/build_script_build-77801760787c2898.d: /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.4.2/build.rs
+
+/Users/a123456/Developer/ottie/ottie/apps/desktop/src-tauri/target/release/build/getrandom-77801760787c2898/build_script_build-77801760787c2898: /Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.4.2/build.rs
+
+/Users/a123456/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.4.2/build.rs:
