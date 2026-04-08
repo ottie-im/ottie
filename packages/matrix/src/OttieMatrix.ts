@@ -409,6 +409,211 @@ export class OttieMatrix {
   }
 
   // ============================================================
+  // 正在输入
+  // ============================================================
+
+  async sendTyping(roomId: string, isTyping: boolean, timeout = 4000): Promise<void> {
+    const client = this.ensureClient()
+    await client.sendTyping(roomId, isTyping, timeout)
+  }
+
+  onTyping(callback: (roomId: string, userIds: string[]) => void): Unsubscribe {
+    const client = this.ensureClient()
+    const handler = (event: MatrixEvent, member: any) => {
+      const room = client.getRoom(event.getRoomId()!)
+      if (room) {
+        const typingMembers = room.getMembers().filter((m: any) => m.typing).map((m: any) => m.userId)
+        const otherTyping = typingMembers.filter((id: string) => id !== this.session?.userId)
+        callback(room.roomId, otherTyping)
+      }
+    }
+    client.on(RoomMemberEvent.Typing, handler)
+    return () => client.removeListener(RoomMemberEvent.Typing, handler)
+  }
+
+  // ============================================================
+  // 在线状态
+  // ============================================================
+
+  async setPresence(status: 'online' | 'offline' | 'unavailable'): Promise<void> {
+    const client = this.ensureClient()
+    try {
+      await client.setPresence({ presence: status })
+    } catch {
+      // Some homeservers don't support presence
+    }
+  }
+
+  getPresence(userId: string): 'online' | 'offline' | 'unavailable' {
+    const client = this.ensureClient()
+    const user = client.getUser(userId)
+    return (user?.presence as 'online' | 'offline' | 'unavailable') ?? 'offline'
+  }
+
+  onPresenceChange(callback: (userId: string, presence: 'online' | 'offline' | 'unavailable') => void): Unsubscribe {
+    const client = this.ensureClient()
+    const handler = (_event: MatrixEvent | undefined, user: any) => {
+      if (user?.userId && user?.presence) {
+        callback(user.userId, user.presence)
+      }
+    }
+    client.on('User.presence' as any, handler)
+    return () => client.removeListener('User.presence' as any, handler)
+  }
+
+  // ============================================================
+  // 已读回执
+  // ============================================================
+
+  async sendReadReceipt(roomId: string, eventId: string): Promise<void> {
+    const client = this.ensureClient()
+    const room = client.getRoom(roomId)
+    if (!room) return
+    const event = room.findEventById(eventId)
+    if (event) {
+      await client.sendReadReceipt(event)
+    }
+  }
+
+  onReadReceipt(callback: (roomId: string, userId: string, eventId: string) => void): Unsubscribe {
+    const client = this.ensureClient()
+    const handler = (event: MatrixEvent, room: Room) => {
+      const content = event.getContent()
+      for (const eventId of Object.keys(content)) {
+        const receipts = content[eventId]?.['m.read']
+        if (receipts) {
+          for (const userId of Object.keys(receipts)) {
+            if (userId !== this.session?.userId) {
+              callback(room.roomId, userId, eventId)
+            }
+          }
+        }
+      }
+    }
+    client.on('Room.receipt' as any, handler)
+    return () => client.removeListener('Room.receipt' as any, handler)
+  }
+
+  // ============================================================
+  // 文件上传
+  // ============================================================
+
+  async uploadContent(file: File): Promise<string> {
+    const client = this.ensureClient()
+    const resp = await client.uploadContent(file, { name: file.name, type: file.type })
+    return resp.content_uri
+  }
+
+  mxcToHttp(mxcUrl: string): string {
+    const client = this.ensureClient()
+    return client.mxcUrlToHttp(mxcUrl, undefined, undefined, undefined, false, true) ?? mxcUrl
+  }
+
+  async sendImageMessage(roomId: string, file: File, mxcUrl: string): Promise<OttieMessage> {
+    const client = this.ensureClient()
+    const content: Record<string, unknown> = {
+      msgtype: 'm.image',
+      body: file.name,
+      url: mxcUrl,
+      info: {
+        mimetype: file.type,
+        size: file.size,
+      },
+    }
+    const resp = await client.sendEvent(roomId, 'm.room.message' as any, content)
+    return {
+      id: resp.event_id,
+      roomId,
+      senderId: this.session!.userId,
+      timestamp: Date.now(),
+      type: 'file',
+      content: { type: 'file', filename: file.name, url: mxcUrl, mimeType: file.type },
+    }
+  }
+
+  async sendFileMessage(roomId: string, file: File, mxcUrl: string): Promise<OttieMessage> {
+    const client = this.ensureClient()
+    const content: Record<string, unknown> = {
+      msgtype: 'm.file',
+      body: file.name,
+      url: mxcUrl,
+      info: {
+        mimetype: file.type,
+        size: file.size,
+      },
+    }
+    const resp = await client.sendEvent(roomId, 'm.room.message' as any, content)
+    return {
+      id: resp.event_id,
+      roomId,
+      senderId: this.session!.userId,
+      timestamp: Date.now(),
+      type: 'file',
+      content: { type: 'file', filename: file.name, url: mxcUrl, mimeType: file.type },
+    }
+  }
+
+  // ============================================================
+  // 个人资料
+  // ============================================================
+
+  async setDisplayName(name: string): Promise<void> {
+    const client = this.ensureClient()
+    await client.setDisplayName(name)
+  }
+
+  async setAvatar(file: File): Promise<void> {
+    const client = this.ensureClient()
+    const mxcUrl = await this.uploadContent(file)
+    await client.setAvatarUrl(mxcUrl)
+  }
+
+  async getProfile(userId?: string): Promise<{ displayName: string; avatarUrl?: string }> {
+    const client = this.ensureClient()
+    const uid = userId ?? this.session!.userId
+    const profile = await client.getProfileInfo(uid)
+    return {
+      displayName: profile.displayname ?? uid,
+      avatarUrl: profile.avatar_url ? this.mxcToHttp(profile.avatar_url) : undefined,
+    }
+  }
+
+  // ============================================================
+  // 消息搜索
+  // ============================================================
+
+  async searchMessages(query: string, roomId?: string): Promise<OttieMessage[]> {
+    const client = this.ensureClient()
+    try {
+      const body: any = {
+        search_categories: {
+          room_events: {
+            search_term: query,
+            order_by: 'recent',
+            ...(roomId ? { filter: { rooms: [roomId] } } : {}),
+          },
+        },
+      }
+      const resp = await client.search({ body })
+      const results = resp.search_categories?.room_events?.results ?? []
+      return results.map((r: any) => {
+        const e = r.result
+        const content: any = e.content ?? {}
+        return {
+          id: e.event_id,
+          roomId: e.room_id,
+          senderId: e.sender,
+          timestamp: e.origin_server_ts,
+          type: 'text' as const,
+          content: { type: 'text' as const, body: content.body ?? '' },
+        }
+      })
+    } catch {
+      return []
+    }
+  }
+
+  // ============================================================
   // 房间
   // ============================================================
 

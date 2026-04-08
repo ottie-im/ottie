@@ -1,4 +1,5 @@
 import React from 'react'
+import { Check, CheckCheck } from 'lucide-react'
 
 type BubbleType = 'outgoing' | 'incoming' | 'intent'
 
@@ -8,22 +9,34 @@ interface OttieBubbleProps {
   time?: string
   senderName?: string
   intentPrefix?: string
+  status?: 'sent' | 'read'
+  mediaType?: 'image' | 'file'
+  mediaUrl?: string
+  fileName?: string
   onExpand?: () => void
+  onImageClick?: () => void
+  onFileDownload?: () => void
+}
+
+const baseStyle: React.CSSProperties = {
+  fontSize: '14.2px',
+  lineHeight: '1.45',
+  fontFamily: 'var(--font-family)',
+  position: 'relative',
 }
 
 const styles: Record<BubbleType, React.CSSProperties> = {
   outgoing: {
+    ...baseStyle,
     background: 'var(--green-wash)',
     color: 'var(--text-primary)',
     borderRadius: '8px 8px 0 8px',
     padding: '8px 12px',
     maxWidth: '65%',
     alignSelf: 'flex-end',
-    fontSize: '14.2px',
-    lineHeight: '1.45',
-    fontFamily: 'var(--font-family)',
   },
   incoming: {
+    ...baseStyle,
     background: 'var(--white)',
     color: 'var(--text-primary)',
     border: '1px solid var(--border)',
@@ -31,11 +44,9 @@ const styles: Record<BubbleType, React.CSSProperties> = {
     padding: '8px 12px',
     maxWidth: '65%',
     alignSelf: 'flex-start',
-    fontSize: '14.2px',
-    lineHeight: '1.45',
-    fontFamily: 'var(--font-family)',
   },
   intent: {
+    ...baseStyle,
     background: 'var(--snow-white)',
     color: 'var(--text-secondary)',
     borderRadius: '8px',
@@ -47,11 +58,14 @@ const styles: Record<BubbleType, React.CSSProperties> = {
     lineHeight: '1.35',
     opacity: 0.8,
     cursor: 'pointer',
-    fontFamily: 'var(--font-family)',
   },
 }
 
-export function OttieBubble({ type, body, time, senderName, intentPrefix, onExpand }: OttieBubbleProps) {
+export function OttieBubble({
+  type, body, time, senderName, intentPrefix, status,
+  mediaType, mediaUrl, fileName,
+  onExpand, onImageClick, onFileDownload,
+}: OttieBubbleProps) {
   return (
     <div style={styles[type]} onClick={type === 'intent' ? onExpand : undefined}>
       {type === 'intent' && (
@@ -64,10 +78,64 @@ export function OttieBubble({ type, body, time, senderName, intentPrefix, onExpa
           {senderName}
         </div>
       )}
-      <div>{body}</div>
+
+      {/* Image */}
+      {mediaType === 'image' && mediaUrl && (
+        <img
+          src={mediaUrl}
+          alt={fileName ?? 'image'}
+          onClick={onImageClick}
+          style={{
+            maxWidth: '100%',
+            maxHeight: '300px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginBottom: body ? '4px' : '0',
+            display: 'block',
+          }}
+        />
+      )}
+
+      {/* File */}
+      {mediaType === 'file' && (
+        <div
+          onClick={onFileDownload}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px',
+            background: 'rgba(0,0,0,0.04)',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginBottom: body ? '4px' : '0',
+          }}
+        >
+          <span style={{ fontSize: '24px' }}>📄</span>
+          <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500, fontStyle: 'normal' }}>
+            {fileName ?? 'file'}
+          </span>
+        </div>
+      )}
+
+      {/* Text body */}
+      {body && !mediaType && <div>{body}</div>}
+
+      {/* Footer: time + read status */}
       {time && (
-        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'right', marginTop: '2px' }}>
-          {time}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: '4px',
+          marginTop: '2px',
+        }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{time}</span>
+          {type === 'outgoing' && status && (
+            status === 'read'
+              ? <CheckCheck size={14} color="var(--read-check)" />
+              : <Check size={14} color="var(--text-secondary)" />
+          )}
         </div>
       )}
     </div>

@@ -110,6 +110,90 @@ export async function unblockUser(userId: string) {
   return m.unblockUser(userId)
 }
 
+// ---- Typing ----
+
+export async function sendTyping(roomId: string, isTyping: boolean): Promise<void> {
+  const m = getMatrix()
+  return m.sendTyping(roomId, isTyping)
+}
+
+export function onTyping(callback: (roomId: string, userIds: string[]) => void) {
+  const m = getMatrix()
+  return m.onTyping(callback)
+}
+
+// ---- Presence ----
+
+export async function setPresence(status: 'online' | 'offline' | 'unavailable') {
+  const m = getMatrix()
+  return m.setPresence(status)
+}
+
+export function getPresence(userId: string) {
+  const m = getMatrix()
+  return m.getPresence(userId)
+}
+
+export function onPresenceChange(callback: (userId: string, presence: 'online' | 'offline' | 'unavailable') => void) {
+  const m = getMatrix()
+  return m.onPresenceChange(callback)
+}
+
+// ---- Read Receipts ----
+
+export async function sendReadReceipt(roomId: string, eventId: string) {
+  const m = getMatrix()
+  return m.sendReadReceipt(roomId, eventId)
+}
+
+export function onReadReceipt(callback: (roomId: string, userId: string, eventId: string) => void) {
+  const m = getMatrix()
+  return m.onReadReceipt(callback)
+}
+
+// ---- File Upload ----
+
+export async function uploadAndSendImage(roomId: string, file: File) {
+  const m = getMatrix()
+  const mxcUrl = await m.uploadContent(file)
+  return m.sendImageMessage(roomId, file, mxcUrl)
+}
+
+export async function uploadAndSendFile(roomId: string, file: File) {
+  const m = getMatrix()
+  const mxcUrl = await m.uploadContent(file)
+  return m.sendFileMessage(roomId, file, mxcUrl)
+}
+
+export function mxcToHttp(mxcUrl: string): string {
+  const m = getMatrix()
+  return m.mxcToHttp(mxcUrl)
+}
+
+// ---- Profile ----
+
+export async function setDisplayName(name: string) {
+  const m = getMatrix()
+  return m.setDisplayName(name)
+}
+
+export async function setAvatar(file: File) {
+  const m = getMatrix()
+  return m.setAvatar(file)
+}
+
+export async function getProfile(userId?: string) {
+  const m = getMatrix()
+  return m.getProfile(userId)
+}
+
+// ---- Search ----
+
+export async function searchMessages(query: string, roomId?: string) {
+  const m = getMatrix()
+  return m.searchMessages(query, roomId)
+}
+
 // ---- Rooms ----
 
 export function getRooms() {

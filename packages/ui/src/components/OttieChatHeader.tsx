@@ -5,9 +5,17 @@ interface OttieChatHeaderProps {
   name: string
   avatarUrl?: string
   online?: boolean
+  typingText?: string
 }
 
-export function OttieChatHeader({ name, avatarUrl, online }: OttieChatHeaderProps) {
+export function OttieChatHeader({ name, avatarUrl, online, typingText }: OttieChatHeaderProps) {
+  const statusText = typingText
+    ? typingText
+    : online ? '在线' : '离线'
+  const statusColor = typingText
+    ? 'var(--ottie-green)'
+    : online ? 'var(--success)' : 'var(--text-tertiary)'
+
   return (
     <div
       style={{
@@ -22,11 +30,11 @@ export function OttieChatHeader({ name, avatarUrl, online }: OttieChatHeaderProp
         fontFamily: 'var(--font-family)',
       }}
     >
-      <OttieAvatar name={name} avatarUrl={avatarUrl} size={40} />
+      <OttieAvatar name={name} avatarUrl={avatarUrl} size={40} online={online} />
       <div>
         <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-primary)' }}>{name}</div>
-        <div style={{ fontSize: '12px', color: online ? 'var(--success)' : 'var(--text-tertiary)' }}>
-          {online ? '在线' : '离线'}
+        <div style={{ fontSize: '12px', color: statusColor, transition: 'var(--transition)' }}>
+          {statusText}
         </div>
       </div>
     </div>

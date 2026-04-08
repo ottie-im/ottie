@@ -1,14 +1,16 @@
-import React, { useState } from 'react'
-import { Send } from 'lucide-react'
+import React, { useState, useRef } from 'react'
+import { Send, Paperclip } from 'lucide-react'
 
 interface OttieInputProps {
   onSend: (text: string) => void
+  onAttach?: (file: File) => void
   placeholder?: string
   disabled?: boolean
 }
 
-export function OttieInput({ onSend, placeholder = '跟 Ottie 说...', disabled }: OttieInputProps) {
+export function OttieInput({ onSend, onAttach, placeholder = '跟 Ottie 说...', disabled }: OttieInputProps) {
   const [text, setText] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const handleSend = () => {
     const trimmed = text.trim()
@@ -22,6 +24,14 @@ export function OttieInput({ onSend, placeholder = '跟 Ottie 说...', disabled 
       e.preventDefault()
       handleSend()
     }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && onAttach) {
+      onAttach(file)
+    }
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   const hasText = text.trim().length > 0
@@ -38,6 +48,32 @@ export function OttieInput({ onSend, placeholder = '跟 Ottie 说...', disabled 
         fontFamily: 'var(--font-family)',
       }}
     >
+      {onAttach && (
+        <>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={disabled}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '4px',
+            }}
+          >
+            <Paperclip size={20} />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt"
+          />
+        </>
+      )}
       <input
         type="text"
         value={text}
