@@ -109,8 +109,8 @@ export function App() {
 
   return (
     <>
-      {/* Global connection status bar */}
-      <OttieConnectionBar status={connectionStatus} />
+      {/* Global connection status bar (only show when logged in) */}
+      {loggedIn && <OttieConnectionBar status={connectionStatus} />}
 
       {/* Global error toast */}
       {globalError && (
