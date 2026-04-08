@@ -1,0 +1,15 @@
+{
+  "name": "ottie-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@ottie-im/contracts": "workspace:*",
+    "@ottie-im/ui": "workspace:*",
+    "@ottie-im/matrix": "workspace:*",
+    "@ottie-im/a2ui": "workspace:*",
+    "expo": "~52.0.0",
+    "react": "^19.0.0",
+    "react-native": "~0.76.0"
+  },
+  "scripts": { "dev": "expo start", "build": "expo build", "test": "jest" }
+}

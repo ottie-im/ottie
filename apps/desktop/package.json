@@ -1,0 +1,14 @@
+{
+  "name": "ottie-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@ottie-im/contracts": "workspace:*",
+    "@ottie-im/ui": "workspace:*",
+    "@ottie-im/matrix": "workspace:*",
+    "@ottie-im/a2ui": "workspace:*",
+    "@tauri-apps/api": "^2.0.0",
+    "react": "^19.0.0"
+  },
+  "scripts": { "dev": "tauri dev", "build": "tauri build", "test": "vitest" }
+}

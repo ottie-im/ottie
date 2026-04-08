@@ -1,0 +1,10 @@
+{
+  "name": "@ottie-im/matrix",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@ottie-im/contracts": "workspace:*",
+    "matrix-js-sdk": "^34.0.0"
+  },
+  "scripts": { "build": "tsc", "test": "vitest" }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@ottie-im/a2ui",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@ottie-im/contracts": "workspace:*",
+    "@ottie-im/ui": "workspace:*"
+  },
+  "scripts": { "build": "tsc", "test": "vitest" }
+}

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(packages/contracts/**)",
+      "Edit(references/**)",
+      "Edit(docs/architecture.md)",
+      "Edit(CLAUDE.md)"
+    ],
+    "allow": [
+      "Read(**)",
+      "Bash(npm test)",
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(npx tsc --noEmit)"
+    ]
+  }
+}
