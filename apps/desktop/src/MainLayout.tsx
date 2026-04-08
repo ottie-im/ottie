@@ -56,6 +56,9 @@ export function MainLayout() {
     presenceMap, setPresence: setPresenceState,
     friends, setFriends,
     pendingDecision, setPendingDecision,
+    isSendingMessage, setIsSendingMessage,
+    isLLMProcessing, setIsLLMProcessing,
+    setGlobalError,
   } = useAppStore()
 
   const [userSearchResults, setUserSearchResults] = useState<any[]>([])
@@ -201,13 +204,26 @@ export function MainLayout() {
 
     addMessage({ id: `intent_${Date.now()}`, type: 'intent', body: text, time: formatTime() })
 
-    const rewritten = await rewriteIntent(text)
-    setPendingApproval({
-      requestId: `approval_${Date.now()}`,
-      draft: rewritten,
-      originalIntent: text,
-      targetRoom: activeConversationId,
-    })
+    setIsLLMProcessing(true)
+    try {
+      const rewritten = await rewriteIntent(text)
+      setPendingApproval({
+        requestId: `approval_${Date.now()}`,
+        draft: rewritten,
+        originalIntent: text,
+        targetRoom: activeConversationId,
+      })
+    } catch {
+      // LLM failed, fallback to original text
+      setPendingApproval({
+        requestId: `approval_${Date.now()}`,
+        draft: text,
+        originalIntent: text,
+        targetRoom: activeConversationId,
+      })
+    } finally {
+      setIsLLMProcessing(false)
+    }
   }
 
   const handleAttach = async (file: File) => {
@@ -228,21 +244,24 @@ export function MainLayout() {
           mediaType: 'file', fileName: file.name, mimeType: file.type,
         })
       }
-    } catch (err) {
-      console.error('Upload failed:', err)
+    } catch (err: any) {
+      setGlobalError('文件上传失败：' + (err.message ?? '请重试'))
     }
   }
 
   const handleApprove = async () => {
     if (!pendingApproval) return
+    setIsSendingMessage(true)
     try {
       const msg = await sendMessage(pendingApproval.targetRoom, pendingApproval.draft)
       addMessage({
         id: msg.id, type: 'outgoing', body: pendingApproval.draft,
         time: formatTime(), status: 'sent',
       })
-    } catch (err) {
-      console.error('Send failed:', err)
+    } catch (err: any) {
+      setGlobalError('消息发送失败：' + (err.message ?? '请重试'))
+    } finally {
+      setIsSendingMessage(false)
     }
     setPendingApproval(null)
   }
@@ -386,6 +405,15 @@ export function MainLayout() {
                       fileName={msg.fileName}
                     />
                   ))}
+                  {isLLMProcessing && (
+                    <div style={{
+                      alignSelf: 'flex-end', padding: '8px 12px',
+                      fontSize: '13px', color: 'var(--text-tertiary)',
+                      fontStyle: 'italic', fontFamily: 'var(--font-family)',
+                    }}>
+                      🦦 Ottie 正在思考...
+                    </div>
+                  )}
                   {pendingDecision && (
                     <OttieDecisionCard
                       senderName={pendingDecision.senderName}

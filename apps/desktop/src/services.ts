@@ -9,15 +9,81 @@ import type { OttieMessage, OttieMessageContent, ApprovalRequest, ApprovalDecisi
 
 const MATRIX_BASE_URL = 'http://localhost:8008'
 const REG_TOKEN = 'ottie-dev-token'
+const CREDENTIALS_KEY = 'ottie_credentials'
 
 // ---- Singleton ----
 
 let matrix: OttieMatrix | null = null
 let syncing = false
+let reconnectTimer: ReturnType<typeof setTimeout> | undefined
 
 export function getMatrix(): OttieMatrix {
   if (!matrix) throw new Error('Not logged in')
   return matrix
+}
+
+// ---- Credentials persistence (localStorage) ----
+
+function saveCredentials(username: string, password: string) {
+  try {
+    localStorage.setItem(CREDENTIALS_KEY, JSON.stringify({ username, password }))
+  } catch {}
+}
+
+function loadCredentials(): { username: string; password: string } | null {
+  try {
+    const raw = localStorage.getItem(CREDENTIALS_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function clearCredentials() {
+  try { localStorage.removeItem(CREDENTIALS_KEY) } catch {}
+}
+
+// ---- Error wrapper ----
+
+async function withErrorHandling<T>(fn: () => Promise<T>, fallback?: T): Promise<T> {
+  try {
+    return await fn()
+  } catch (err: any) {
+    const msg = err.data?.error ?? err.message ?? 'Unknown error'
+    console.error('[Ottie]', msg)
+
+    // Connection lost — trigger reconnect
+    if (msg.includes('fetch failed') || msg.includes('Failed to fetch') || msg.includes('network')) {
+      scheduleReconnect()
+    }
+
+    if (fallback !== undefined) return fallback
+    throw err
+  }
+}
+
+// ---- Reconnection ----
+
+function scheduleReconnect() {
+  if (reconnectTimer) return
+  const { useAppStore } = require('./store')
+  useAppStore.getState().setConnectionStatus('reconnecting')
+
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = undefined
+    try {
+      const creds = loadCredentials()
+      if (creds && !syncing) {
+        matrix = new OttieMatrix({ baseUrl: MATRIX_BASE_URL })
+        await matrix.login(creds.username, creds.password)
+        await matrix.startSync()
+        syncing = true
+        useAppStore.getState().setConnectionStatus('connected')
+        console.log('[Ottie] Reconnected')
+      }
+    } catch {
+      // Retry in 10 seconds
+      scheduleReconnect()
+    }
+  }, 5000)
 }
 
 // ---- Auth ----
@@ -25,21 +91,38 @@ export function getMatrix(): OttieMatrix {
 export async function login(username: string, password: string): Promise<string> {
   matrix = new OttieMatrix({ baseUrl: MATRIX_BASE_URL })
   const session = await matrix.login(username, password)
+  saveCredentials(username, password)
   return session.userId
 }
 
 export async function register(username: string, password: string): Promise<string> {
   matrix = new OttieMatrix({ baseUrl: MATRIX_BASE_URL })
   const session = await matrix.register(username, password, REG_TOKEN)
+  saveCredentials(username, password)
   return session.userId
 }
 
 export async function logout(): Promise<void> {
+  clearCredentials()
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = undefined }
   if (matrix) {
     matrix.stopSync()
-    await matrix.logout()
+    await matrix.logout().catch(() => {})
     matrix = null
     syncing = false
+  }
+}
+
+// ---- Auto-login from saved credentials ----
+
+export async function tryAutoLogin(): Promise<string | null> {
+  const creds = loadCredentials()
+  if (!creds) return null
+  try {
+    return await login(creds.username, creds.password)
+  } catch {
+    clearCredentials()
+    return null
   }
 }
 

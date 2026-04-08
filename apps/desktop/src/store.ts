@@ -9,6 +9,22 @@ interface AppState {
   setLoggedIn: (userId: string) => void
   setLoggedOut: () => void
 
+  // Connection
+  connectionStatus: 'connected' | 'reconnecting' | 'disconnected'
+  setConnectionStatus: (status: 'connected' | 'reconnecting' | 'disconnected') => void
+
+  // Global error (toast-style, auto-dismiss)
+  globalError: string | null
+  setGlobalError: (error: string | null) => void
+
+  // Loading states
+  isSyncing: boolean
+  isSendingMessage: boolean
+  isLLMProcessing: boolean
+  setIsSyncing: (v: boolean) => void
+  setIsSendingMessage: (v: boolean) => void
+  setIsLLMProcessing: (v: boolean) => void
+
   // View
   currentView: 'chat' | 'settings'
   sidebarView: 'chats' | 'contacts'
@@ -96,8 +112,21 @@ export const useAppStore = create<AppState>((set) => ({
   setLoggedOut: () => set({
     loggedIn: false, userId: null, conversations: [], messages: [],
     activeConversationId: null, friends: [], friendRequests: [], blockedUsers: [],
-    typingUsers: {}, presenceMap: {},
+    typingUsers: {}, presenceMap: {}, connectionStatus: 'disconnected' as const,
   }),
+
+  connectionStatus: 'disconnected' as const,
+  setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
+
+  globalError: null,
+  setGlobalError: (globalError) => set({ globalError }),
+
+  isSyncing: false,
+  isSendingMessage: false,
+  isLLMProcessing: false,
+  setIsSyncing: (isSyncing) => set({ isSyncing }),
+  setIsSendingMessage: (isSendingMessage) => set({ isSendingMessage }),
+  setIsLLMProcessing: (isLLMProcessing) => set({ isLLMProcessing }),
 
   currentView: 'chat',
   sidebarView: 'chats',
