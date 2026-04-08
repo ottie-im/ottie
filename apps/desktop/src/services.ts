@@ -104,6 +104,13 @@ export async function register(username: string, password: string): Promise<stri
 
 export async function logout(): Promise<void> {
   clearCredentials()
+  // Clear message/conversation cache
+  try {
+    const keys = Object.keys(localStorage)
+    for (const key of keys) {
+      if (key.startsWith('ottie_cache_')) localStorage.removeItem(key)
+    }
+  } catch {}
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = undefined }
   if (matrix) {
     matrix.stopSync()

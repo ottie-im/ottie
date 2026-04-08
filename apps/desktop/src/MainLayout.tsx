@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react'
 import { useAppStore } from './store'
 import type { ChatMessage } from './store'
+import { cacheConversations, loadCachedConversations, cacheMessages, loadCachedMessages } from './cache'
 import {
   OttieSidebar, OttieChatHeader, OttieBubble, OttieApproval, OttieInput,
   OttieContactPanel, OttieDecisionCard,
@@ -70,17 +71,31 @@ export function MainLayout() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, pendingApproval, pendingDecision])
 
-  // Load conversations
+  // Load conversations — show cache first, then refresh from server
   const refreshConversations = useCallback(() => {
     const convs = roomsToConversations()
-    if (convs.length > 0) setConversations(convs)
+    if (convs.length > 0) {
+      setConversations(convs)
+      cacheConversations(convs)
+    }
   }, [setConversations])
 
   useEffect(() => {
+    // Immediately show cached conversations
+    const cached = loadCachedConversations()
+    if (cached.length > 0) setConversations(cached)
+    // Then refresh from server
     refreshConversations()
     const interval = setInterval(refreshConversations, 3000)
     return () => clearInterval(interval)
-  }, [refreshConversations])
+  }, [refreshConversations, setConversations])
+
+  // Cache messages on change
+  useEffect(() => {
+    if (activeConversationId && messages.length > 0) {
+      cacheMessages(activeConversationId, messages)
+    }
+  }, [messages, activeConversationId])
 
   // Listen for incoming messages + trigger intent detection
   useEffect(() => {
@@ -140,9 +155,15 @@ export function MainLayout() {
     return unsub
   }, [activeConversationId, updateMessageStatus])
 
-  // Load messages when switching conversation
+  // Load messages when switching conversation — show cache first, then fetch
   useEffect(() => {
     if (!activeConversationId) return
+
+    // Immediately show cached messages
+    const cached = loadCachedMessages(activeConversationId)
+    if (cached.length > 0) setMessages(cached)
+
+    // Then fetch from server
     getMessages(activeConversationId, 50)
       .then(msgs => {
         const chatMsgs: ChatMessage[] = msgs.map(m => {
@@ -164,15 +185,17 @@ export function MainLayout() {
             mimeType: content.mimeType,
           }
         })
-        // Messages come newest-first from API, reverse to chronological
         chatMsgs.reverse()
         setMessages(chatMsgs)
-        // Send read receipt for last message
+        cacheMessages(activeConversationId, chatMsgs)
         if (msgs.length > 0) {
           sendReadReceipt(activeConversationId, msgs[msgs.length - 1].id).catch(() => {})
         }
       })
-      .catch(() => setMessages([]))
+      .catch(() => {
+        // If fetch fails, keep showing cached messages
+        if (cached.length === 0) setMessages([])
+      })
   }, [activeConversationId, userId, setMessages])
 
   // Refresh friends when needed
