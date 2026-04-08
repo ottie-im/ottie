@@ -176,7 +176,7 @@ export class OttieMatrix {
   // 消息收发
   // ============================================================
 
-  async sendMessage(roomId: string, content: OttieMessageContent): Promise<OttieMessage> {
+  async sendMessage(roomId: string, content: OttieMessageContent, replyTo?: string): Promise<OttieMessage> {
     const client = this.ensureClient()
     let matrixContent: Record<string, unknown>
 
@@ -186,6 +186,13 @@ export class OttieMatrix {
       matrixContent = { msgtype: 'm.file', body: content.filename, url: content.url, info: { mimetype: content.mimeType } }
     } else {
       matrixContent = { msgtype: 'm.text', body: JSON.stringify(content) }
+    }
+
+    // Reply threading (Matrix m.relates_to)
+    if (replyTo) {
+      matrixContent['m.relates_to'] = {
+        'm.in_reply_to': { event_id: replyTo },
+      }
     }
 
     const resp = await client.sendEvent(roomId, 'm.room.message' as any, matrixContent)

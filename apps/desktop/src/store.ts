@@ -37,6 +37,10 @@ interface AppState {
   setConversations: (convs: ConversationItem[]) => void
   setActiveConversation: (id: string) => void
 
+  // Reply
+  replyingTo: { id: string; sender: string; body: string } | null
+  setReplyingTo: (msg: { id: string; sender: string; body: string } | null) => void
+
   // Messages
   messages: ChatMessage[]
   addMessage: (msg: ChatMessage) => void
@@ -91,6 +95,8 @@ export interface ChatMessage {
   mediaUrl?: string
   fileName?: string
   mimeType?: string
+  // Reply
+  replyTo?: { sender: string; body: string }
 }
 
 export interface ScreenNotification {
@@ -158,6 +164,9 @@ export const useAppStore = create<AppState>((set) => ({
   updateMessageStatus: (id, status) => set((s) => ({
     messages: s.messages.map(m => m.id === id ? { ...m, status } : m),
   })),
+
+  replyingTo: null,
+  setReplyingTo: (replyingTo) => set({ replyingTo }),
 
   pendingApproval: null,
   setPendingApproval: (pendingApproval) => set({ pendingApproval }),

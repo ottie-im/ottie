@@ -13,6 +13,9 @@ interface OttieBubbleProps {
   mediaType?: 'image' | 'file'
   mediaUrl?: string
   fileName?: string
+  // Reply
+  replyTo?: { sender: string; body: string }
+  onReply?: () => void
   onExpand?: () => void
   onImageClick?: () => void
   onFileDownload?: () => void
@@ -66,10 +69,22 @@ const styles: Record<BubbleType, React.CSSProperties> = {
 export function OttieBubble({
   type, body, time, senderName, intentPrefix, status,
   mediaType, mediaUrl, fileName,
+  replyTo, onReply,
   onExpand, onImageClick, onFileDownload,
 }: OttieBubbleProps) {
   return (
     <div style={styles[type]} onClick={type === 'intent' ? onExpand : undefined}>
+      {/* Quoted reply */}
+      {replyTo && (
+        <div style={{
+          borderLeft: '3px solid var(--ottie-green)', paddingLeft: '8px', marginBottom: '6px',
+          fontSize: '12px', color: 'var(--text-secondary)',
+        }}>
+          <div style={{ fontWeight: 500, color: 'var(--ottie-teal)', fontSize: '11px' }}>{replyTo.sender}</div>
+          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{replyTo.body}</div>
+        </div>
+      )}
+
       {type === 'intent' && (
         <span style={{ color: 'var(--text-tertiary)', fontSize: '12px', fontStyle: 'normal' }}>
           {intentPrefix ?? '🦦 你说：'}
@@ -123,7 +138,7 @@ export function OttieBubble({
       {/* Text body */}
       {body && !mediaType && <div>{body}</div>}
 
-      {/* Footer: time + read status */}
+      {/* Footer: time + read status + reply */}
       {time && (
         <div style={{
           display: 'flex',
@@ -132,6 +147,18 @@ export function OttieBubble({
           gap: '4px',
           marginTop: '2px',
         }}>
+          {onReply && type !== 'intent' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onReply() }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: '11px', color: 'var(--text-tertiary)', padding: '0 4px',
+                marginRight: 'auto',
+              }}
+            >
+              ↩ 回复
+            </button>
+          )}
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{time}</span>
           {type === 'outgoing' && status && (
             status === 'read'

@@ -6,9 +6,11 @@ interface OttieInputProps {
   onAttach?: (file: File) => void
   placeholder?: string
   disabled?: boolean
+  replyingTo?: { sender: string; body: string } | null
+  onCancelReply?: () => void
 }
 
-export function OttieInput({ onSend, onAttach, placeholder = '跟 Ottie 说...', disabled }: OttieInputProps) {
+export function OttieInput({ onSend, onAttach, placeholder = '跟 Ottie 说...', disabled, replyingTo, onCancelReply }: OttieInputProps) {
   const [text, setText] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -49,6 +51,21 @@ export function OttieInput({ onSend, onAttach, placeholder = '跟 Ottie 说...',
   const hasText = text.trim().length > 0
 
   return (
+    <div>
+      {/* Reply preview */}
+      {replyingTo && (
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '6px 16px', background: 'var(--snow-white)', borderTop: '1px solid var(--border)',
+          borderLeft: '3px solid var(--ottie-green)', fontFamily: 'var(--font-family)',
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ottie-teal)' }}>{replyingTo.sender}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{replyingTo.body}</div>
+          </div>
+          <button onClick={onCancelReply} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: '16px', padding: '0 4px' }}>✕</button>
+        </div>
+      )}
     <div
       style={{
         display: 'flex',
@@ -126,6 +143,7 @@ export function OttieInput({ onSend, onAttach, placeholder = '跟 Ottie 说...',
       >
         <Send size={18} />
       </button>
+    </div>
     </div>
   )
 }

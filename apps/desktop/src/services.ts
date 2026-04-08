@@ -117,8 +117,8 @@ export async function startSync(): Promise<void> {
 
 // ---- Messages (pure IM, no Agent logic) ----
 
-export async function sendMessage(roomId: string, body: string): Promise<OttieMessage> {
-  return getMatrix().sendMessage(roomId, { type: 'text', body })
+export async function sendMessage(roomId: string, body: string, replyTo?: string): Promise<OttieMessage> {
+  return getMatrix().sendMessage(roomId, { type: 'text', body }, replyTo)
 }
 export async function getMessages(roomId: string, limit = 50): Promise<OttieMessage[]> {
   return getMatrix().getMessages(roomId, limit)
