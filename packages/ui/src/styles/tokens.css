@@ -1,0 +1,56 @@
+/* Ottie Design Tokens — extracted from DESIGN.md */
+
+:root {
+  /* Brand */
+  --ottie-green: #25D366;
+  --ottie-dark-green: #128C7E;
+  --ottie-teal: #075E54;
+
+  /* Surface */
+  --white: #ffffff;
+  --cloud-gray: #f0f2f5;
+  --green-wash: #dcf8c6;
+  --snow-white: #f7f8fa;
+  --cream: #fdf4e3;
+
+  /* Text */
+  --text-primary: #111b21;
+  --text-secondary: #667781;
+  --text-tertiary: #8696a0;
+
+  /* Border */
+  --border: #e9edef;
+  --border-approval: #f0ddb8;
+
+  /* Semantic */
+  --success: #25D366;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --read-check: #53bdeb;
+
+  /* Spacing */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 16px;
+  --sp-xl: 24px;
+  --sp-2xl: 32px;
+
+  /* Radius */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-full: 50%;
+
+  /* Shadow */
+  --shadow-subtle: 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-popup: 0 4px 16px rgba(0,0,0,0.12);
+
+  /* Font */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Transition */
+  --transition: 150ms ease-out;
+}

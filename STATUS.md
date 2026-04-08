@@ -41,32 +41,35 @@
 - 所有 UI 遵循 DESIGN.md ✅
 - 基础功能优先，UI 后续迭代 ✅
 
-### Step 3.1 — packages/ui/（共享组件库）
-技术栈：React + TypeScript + CSS Modules（或 Tailwind）
+### Step 3.1 — packages/ui/（共享组件库）✅ 完成
+技术栈：React + TypeScript + inline styles（CSS 变量）
 
-- [ ] OttieBubble — 聊天气泡（outgoing/incoming/intent 三种）
-- [ ] OttieApproval — 审批卡片（批准/编辑/拒绝）
-- [ ] OttieInput — 输入框 + 发送按钮
-- [ ] OttieSidebar — 侧边栏（会话列表 + 搜索）
-- [ ] OttieChatHeader — 聊天头部（头像 + 名字 + 状态）
-- [ ] OttieAvatar — 头像组件（图片/首字母回退）
-- [ ] OttieFriendRequest — 好友请求卡片
-- [ ] OttieLogin — 登录页面
+- [x] OttieAvatar — 头像组件（图片/首字母回退 + 在线状态）
+- [x] OttieBubble — 聊天气泡（outgoing/incoming/intent 三种）
+- [x] OttieApproval — 审批卡片（批准/编辑/拒绝）
+- [x] OttieInput — 输入框 + 发送按钮（Enter 发送）
+- [x] OttieSidebar — 侧边栏（会话列表 + 搜索 + 未读徽章）
+- [x] OttieChatHeader — 聊天头部（头像 + 名字 + 在线状态）
+- [x] OttieLogin — 登录/注册页面
+- [ ] OttieFriendRequest — 好友请求卡片（待实现）
 
-### Step 3.2 — apps/desktop/（桌面端 App）
-技术栈：Tauri v2 + React + Vite
+### Step 3.2 — apps/desktop/（桌面端 App）🔨 进行中
+技术栈：Vite + React（后续加 Tauri v2 壳，需先装 Rust）
 
-- [ ] 初始化 Tauri v2 项目
-- [ ] 搭建 React + Vite 前端
-- [ ] 集成 packages/ui 组件
-- [ ] 接入 OttieMatrix（登录、消息收发、好友）
-- [ ] 接入 OttieAgentAdapter（改写、审批）
-- [ ] 状态管理（Zustand）
-- [ ] 路由：登录页 → 主界面（侧边栏 + 聊天）
+- [x] 初始化 Vite + React 项目
+- [x] 集成 packages/ui 组件
+- [x] 状态管理（Zustand）
+- [x] 登录页 → 主界面（侧边栏 + 聊天）路由
+- [x] Demo 数据验证 UI 渲染
+- [x] 模拟审批流程：意图 → 改写 → 审批卡片 → 批准/拒绝 → 发出
+- [ ] 接入真实 OttieMatrix（登录、消息收发、好友）
+- [ ] 接入真实 OttieAgentAdapter（改写、审批）
+- [ ] 安装 Rust + Tauri v2 壳
 
 ### Step 3.3 — 端到端验证
-- [ ] 登录 → 搜索用户 → 发好友请求 → 对方接受
-- [ ] 输入意图 → Agent 改写 → 审批卡片 → 批准/编辑/拒绝 → 发送
+- [ ] 真实登录 Tuwunel（localhost:8008）
+- [ ] 搜索用户 → 发好友请求 → 对方接受
+- [ ] 输入意图 → Agent 改写 → 审批卡片 → 批准 → 真实发送
 - [ ] 对方收到消息 → 显示在聊天流中
 - [ ] 消息撤回、拉黑
 

@@ -2,13 +2,25 @@
   "name": "ottie-desktop",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@ottie-im/contracts": "*",
     "@ottie-im/ui": "*",
     "@ottie-im/matrix": "*",
-    "@ottie-im/a2ui": "*",
-    "@tauri-apps/api": "^2.0.0",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.0"
   },
-  "scripts": { "dev": "tauri dev", "build": "tauri build", "test": "vitest" }
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "typescript": "^5.5.0",
+    "vite": "^6.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  }
 }

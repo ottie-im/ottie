@@ -1,0 +1,51 @@
+/* Ottie Design Tokens */
+:root {
+  --ottie-green: #25D366;
+  --ottie-dark-green: #128C7E;
+  --ottie-teal: #075E54;
+  --white: #ffffff;
+  --cloud-gray: #f0f2f5;
+  --green-wash: #dcf8c6;
+  --snow-white: #f7f8fa;
+  --cream: #fdf4e3;
+  --text-primary: #111b21;
+  --text-secondary: #667781;
+  --text-tertiary: #8696a0;
+  --border: #e9edef;
+  --border-approval: #f0ddb8;
+  --success: #25D366;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --read-check: #53bdeb;
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 16px;
+  --sp-xl: 24px;
+  --sp-2xl: 32px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-full: 50%;
+  --shadow-subtle: 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-popup: 0 4px 16px rgba(0,0,0,0.12);
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --transition: 150ms ease-out;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  background: var(--white);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
