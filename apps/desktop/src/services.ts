@@ -9,8 +9,8 @@ import { OttieMatrix } from '@ottie-im/matrix'
 import type { OttieMessage, Unsubscribe, OttieAgentAdapter } from '@ottie-im/contracts'
 import { OpenClawAdapter } from '@ottie-im/agent-adapter'
 
-const MATRIX_BASE_URL = 'http://localhost:8008'
-const REG_TOKEN = 'ottie-dev-token'
+const MATRIX_BASE_URL = import.meta.env.VITE_MATRIX_URL ?? 'http://localhost:8008'
+const REG_TOKEN = import.meta.env.VITE_REG_TOKEN ?? 'ottie-dev-token'
 const CREDENTIALS_KEY = 'ottie_credentials'
 
 // ---- Singletons ----
