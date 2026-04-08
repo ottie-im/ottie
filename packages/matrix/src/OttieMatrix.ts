@@ -1,4 +1,5 @@
-import sdk, { MatrixClient, MatrixEvent, Room, RoomMemberEvent, RoomEvent, ClientEvent, Direction } from 'matrix-js-sdk'
+import * as sdk from 'matrix-js-sdk'
+import { type MatrixClient, type MatrixEvent, type Room, RoomMemberEvent, RoomEvent, ClientEvent, Direction } from 'matrix-js-sdk'
 import type {
   OttieMessage,
   OttieMessageContent,
