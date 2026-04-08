@@ -29,9 +29,11 @@ export function OttieSettingsPage({
 
   return (
     <div style={{
-      flex: 1, overflowY: 'auto', padding: '24px',
+      flex: 1, overflowY: 'auto', padding: '24px 24px',
       background: 'var(--cloud-gray)', fontFamily: 'var(--font-family)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
     }}>
+    <div style={{ width: '100%', maxWidth: '600px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
         <button onClick={onBack} style={{
@@ -119,6 +121,7 @@ export function OttieSettingsPage({
           ))
         )}
       </div>
+    </div>
     </div>
   )
 }

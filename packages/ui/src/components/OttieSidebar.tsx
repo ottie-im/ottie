@@ -127,7 +127,8 @@ export function OttieSidebar({
                 gap: '12px',
                 padding: '12px 16px',
                 borderBottom: '1px solid var(--border)',
-                background: activeId === conv.id ? 'var(--border)' : 'transparent',
+                background: activeId === conv.id ? '#ffffff' : 'transparent',
+                borderLeft: activeId === conv.id ? '3px solid var(--ottie-green)' : '3px solid transparent',
                 cursor: 'pointer',
                 transition: 'var(--transition)',
               }}

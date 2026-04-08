@@ -147,6 +147,8 @@ export function MainLayout() {
             mimeType: content.mimeType,
           }
         })
+        // Messages come newest-first from API, reverse to chronological
+        chatMsgs.reverse()
         setMessages(chatMsgs)
         // Send read receipt for last message
         if (msgs.length > 0) {
@@ -318,8 +320,10 @@ export function MainLayout() {
             <div
               style={{
                 flex: 1, overflowY: 'auto', padding: '16px',
-                display: 'flex', flexDirection: 'column', gap: '4px',
+                display: 'flex', flexDirection: 'column', gap: '6px',
                 background: 'var(--white)',
+                justifyContent: 'flex-end',
+                minHeight: 0,
               }}
             >
               {/* Search results overlay */}
