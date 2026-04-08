@@ -59,11 +59,11 @@ function clearCredentials() {
 
 function scheduleReconnect() {
   if (reconnectTimer) return
-  const { useAppStore } = require('./store')
-  useAppStore.getState().setConnectionStatus('reconnecting')
   reconnectTimer = setTimeout(async () => {
     reconnectTimer = undefined
     try {
+      const { useAppStore } = await import('./store')
+      useAppStore.getState().setConnectionStatus('reconnecting')
       const creds = loadCredentials()
       if (creds && !syncing) {
         matrix = new OttieMatrix({ baseUrl: MATRIX_BASE_URL })
