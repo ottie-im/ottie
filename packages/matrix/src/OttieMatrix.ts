@@ -290,7 +290,6 @@ export class OttieMatrix {
     const resp = await client.createRoom({
       invite: [userId],
       is_direct: true,
-      preset: 'trusted_private_chat' as any,
       name: undefined,
       topic: message,
     })
