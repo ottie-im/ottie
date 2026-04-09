@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Ottie — 你的 AI 秘书",
+        "title": "Ottie \u2014 \u4f60\u7684 AI \u79d8\u4e66",
         "width": 1024,
         "height": 768,
         "minWidth": 800,
@@ -34,6 +34,20 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/screenpipe"
     ]
+  },
+  "plugins": {
+    "shell": {
+      "scope": [
+        {
+          "name": "screenpipe",
+          "cmd": "binaries/screenpipe",
+          "args": true
+        }
+      ]
+    }
   }
 }
