@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../src/store'
-import { login, register, startSync } from '../src/services'
+import { login, register } from '../src/services'
 
 export default function LoginScreen() {
   const { setLoggedIn } = useStore()
@@ -20,7 +20,6 @@ export default function LoginScreen() {
       const userId = isRegister
         ? await register(username, password)
         : await login(username, password)
-      await startSync()
       setLoggedIn(userId)
       router.replace('/(tabs)')
     } catch (err: any) {
