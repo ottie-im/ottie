@@ -1,6 +1,6 @@
 # Ottie 主仓库 — 项目状态
 
-> 最后更新：2026-04-08 13:52 PDT
+> 最后更新：2026-04-09
 
 ## 当前进度
 
@@ -17,8 +17,8 @@
 | Tauri v2 打包 | ✅ 已做过历史打包 | 仓库内保留 Tauri 工程；状态文件不再假设当前产物一定最新 |
 | Phase 4: 设备感知 | 🟡 基础代码完成 | `ottie-agent` 中已有 screen / memory / 通知基础，但桌面默认未启用 `enableScreen` |
 | Phase 5: 生态接入（A2UI + Skills） | 🟡 基础完成 | A2UI renderer 与 skills 模块存在，但产品主流程尚未真正消费 A2UI payload |
-| 移动端 App（React Native） | 🟡 脚手架 + 基础聊天完成 | 已有 login、tabs、会话列表、聊天详情；联系人/设置仍是占位页 |
-| 消息引用回复 | 🟡 底层完成一半 | Matrix `replyTo` 支持、UI 引用气泡与输入预览已写；桌面发送流尚未接线 |
+| 移动端 App（React Native） | ✅ iOS 模拟器验证通过 | 登录页渲染正常，纯 fetch API，联系人/设置/设备遥控全部完成 |
+| 消息引用回复 | ✅ 完成 | Matrix replyTo + UI 引用气泡 + 输入预览 + 桌面发送流已接线 |
 | 文档入口 | ✅ 已同步 | README 已升级为中英双语，并补了组织级 profile README |
 
 ## 给后续 AI 的短结论
