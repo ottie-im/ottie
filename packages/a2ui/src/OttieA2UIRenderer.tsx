@@ -31,9 +31,15 @@ export function OttieA2UIRenderer({
   function renderComponent(comp: A2UIComponent): React.ReactElement | null {
     const def = catalog[comp.type]
     if (!def) {
-      // Unknown component type — security: skip silently
-      console.warn(`[A2UI] Unknown component type: ${comp.type}, skipping`)
-      return null
+      // Unknown component type — show fallback instead of silently skipping
+      return React.createElement('div', {
+        key: comp.id,
+        style: {
+          padding: '8px 12px', margin: '4px 0', borderRadius: '8px',
+          background: '#f7f8fa', border: '1px dashed #e9edef',
+          fontSize: '12px', color: '#8696a0',
+        },
+      }, `[不支持的组件: ${comp.type}]`)
     }
 
     // Resolve data bindings

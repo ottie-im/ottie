@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Check, CheckCheck } from 'lucide-react'
 
 type BubbleType = 'outgoing' | 'incoming' | 'intent'
@@ -72,8 +72,12 @@ export function OttieBubble({
   replyTo, onReply,
   onExpand, onImageClick, onFileDownload,
 }: OttieBubbleProps) {
+  const [expanded, setExpanded] = useState(false)
+  const isIntent = type === 'intent'
+  const truncatedBody = isIntent && !expanded && body.length > 30 ? body.slice(0, 30) + '...' : body
+
   return (
-    <div style={styles[type]} onClick={type === 'intent' ? onExpand : undefined}>
+    <div style={styles[type]} onClick={isIntent ? () => { setExpanded(!expanded); onExpand?.() } : undefined}>
       {/* Quoted reply */}
       {replyTo && (
         <div style={{
@@ -136,7 +140,7 @@ export function OttieBubble({
       )}
 
       {/* Text body */}
-      {body && !mediaType && <div>{body}</div>}
+      {body && !mediaType && <div>{isIntent ? truncatedBody : body}</div>}
 
       {/* Footer: time + read status + reply */}
       {time && (
