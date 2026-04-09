@@ -18,3 +18,4 @@ export type { AgentInfo } from './components/OttieAgentSelector'
 export { OttieDevicePanel } from './components/OttieDevicePanel'
 export type { DeviceInfo } from './components/OttieDevicePanel'
 export { OttieScreenNotification } from './components/OttieScreenNotification'
+export { OttieQRCode } from "./components/OttieQRCode"

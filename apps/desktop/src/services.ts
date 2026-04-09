@@ -176,3 +176,8 @@ export async function searchMessages(query: string, roomId?: string) { return ge
 
 export function getRooms() { return getMatrix().getRooms() }
 export function getSession() { return matrix?.getSession() ?? null }
+
+// ---- QR / Invite ----
+
+export function generateInviteUri(): string { return getMatrix().generateInviteUri() }
+export function parseInviteUri(uri: string) { return (getMatrix().constructor as any).parseInviteUri(uri) }

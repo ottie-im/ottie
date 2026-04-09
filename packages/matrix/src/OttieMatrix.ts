@@ -621,6 +621,25 @@ export class OttieMatrix {
   }
 
   // ============================================================
+  // QR 码 / 链接邀请
+  // ============================================================
+
+  generateInviteUri(): string {
+    if (!this.session) throw new Error('Not logged in')
+    return `ottie://invite?user=${encodeURIComponent(this.session.userId)}&server=${encodeURIComponent(this.config.baseUrl)}`
+  }
+
+  static parseInviteUri(uri: string): { userId: string; server: string } | null {
+    try {
+      const url = new URL(uri)
+      const userId = url.searchParams.get('user')
+      const server = url.searchParams.get('server')
+      if (userId && server) return { userId: decodeURIComponent(userId), server: decodeURIComponent(server) }
+    } catch {}
+    return null
+  }
+
+  // ============================================================
   // 房间
   // ============================================================
 
