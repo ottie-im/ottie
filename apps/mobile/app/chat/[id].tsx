@@ -10,18 +10,19 @@ interface ChatMsg {
   body: string
   time: string
   sender?: string
+  status?: 'sent' | 'read'
 }
 
 export default function ChatScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>()
   const roomId = decodeURIComponent(id ?? '')
+  const contactName = name ? decodeURIComponent(name) : '聊天'
   const { userId } = useStore()
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [text, setText] = useState('')
   const [replyingTo, setReplyingTo] = useState<ChatMsg | null>(null)
   const flatListRef = useRef<FlatList>(null)
 
-  // Load messages
   useEffect(() => {
     if (!roomId) return
     getMessages(roomId, 50).then(msgs => {
@@ -31,25 +32,24 @@ export default function ChatScreen() {
         body: m.content.type === 'text' ? m.content.body : '[media]',
         time: new Date(m.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
         sender: m.senderId,
+        status: m.senderId === userId ? 'sent' as const : undefined,
       })).reverse()
       setMessages(chatMsgs)
-      // Send read receipt
       if (msgs.length > 0) sendReadReceipt(roomId, msgs[msgs.length - 1].id).catch(() => {})
     }).catch(() => {})
   }, [roomId, userId])
 
-  // Listen for new messages
   useEffect(() => {
     const unsub = onMessage(msg => {
       if (msg.roomId === roomId && msg.content.type === 'text') {
-        const newMsg: ChatMsg = {
+        setMessages(prev => [...prev, {
           id: msg.id,
           type: msg.senderId === userId ? 'outgoing' : 'incoming',
           body: msg.content.body,
           time: new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
           sender: msg.senderId,
-        }
-        setMessages(prev => [...prev, newMsg])
+          status: msg.senderId === userId ? 'sent' as const : undefined,
+        }])
         sendReadReceipt(roomId, msg.id).catch(() => {})
       }
     })
@@ -65,7 +65,7 @@ export default function ChatScreen() {
     try {
       const msg = await sendMessage(roomId, trimmed, replyId)
       setMessages(prev => [...prev, {
-        id: msg.id, type: 'outgoing', body: trimmed,
+        id: msg.id, type: 'outgoing', body: trimmed, status: 'sent',
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       }])
     } catch {}
@@ -78,13 +78,26 @@ export default function ChatScreen() {
       activeOpacity={0.7}
     >
       <Text style={s.bubbleText}>{item.body}</Text>
-      <Text style={s.bubbleTime}>{item.time}</Text>
+      <View style={s.bubbleFooter}>
+        <Text style={s.bubbleTime}>{item.time}</Text>
+        {item.type === 'outgoing' && (
+          <Text style={[s.checkmark, item.status === 'read' && s.checkmarkRead]}>
+            {item.status === 'read' ? '✓✓' : '✓'}
+          </Text>
+        )}
+      </View>
     </TouchableOpacity>
   )
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, headerTitle: '聊天', headerStyle: { backgroundColor: '#128C7E' }, headerTintColor: '#fff' }} />
+      <Stack.Screen options={{
+        headerShown: true,
+        headerTitle: contactName,
+        headerStyle: { backgroundColor: '#128C7E' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: '500' },
+      }} />
       <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
         <FlatList
           ref={flatListRef}
@@ -93,9 +106,14 @@ export default function ChatScreen() {
           keyExtractor={i => i.id}
           contentContainerStyle={s.messageList}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          ListEmptyComponent={
+            <View style={s.emptyChat}>
+              <Text style={{ fontSize: 32, marginBottom: 8 }}>💬</Text>
+              <Text style={{ color: '#667781', fontSize: 14 }}>还没有消息，说点什么吧</Text>
+            </View>
+          }
         />
 
-        {/* Reply preview */}
         {replyingTo && (
           <View style={s.replyBar}>
             <View style={s.replyContent}>
@@ -134,7 +152,11 @@ const s = StyleSheet.create({
   outgoing: { alignSelf: 'flex-end', backgroundColor: '#dcf8c6', borderBottomRightRadius: 0 },
   incoming: { alignSelf: 'flex-start', backgroundColor: '#f7f8fa', borderBottomLeftRadius: 0, borderWidth: 1, borderColor: '#e9edef' },
   bubbleText: { fontSize: 14.2, lineHeight: 20, color: '#111b21' },
-  bubbleTime: { fontSize: 11, color: '#667781', textAlign: 'right', marginTop: 2 },
+  bubbleFooter: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginTop: 2 },
+  bubbleTime: { fontSize: 11, color: '#667781' },
+  checkmark: { fontSize: 11, color: '#667781' },
+  checkmarkRead: { color: '#53bdeb' },
+  emptyChat: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
   replyBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, backgroundColor: '#f7f8fa', borderTopWidth: 1, borderTopColor: '#e9edef', borderLeftWidth: 3, borderLeftColor: '#25D366' },
   replyContent: { flex: 1 },
   replySender: { fontSize: 11, fontWeight: '500', color: '#075E54' },

@@ -1,5 +1,5 @@
-import React, { useEffect, useCallback } from 'react'
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native'
+import React, { useEffect, useCallback, useState } from 'react'
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../../src/store'
 import { getRooms, getSession, getPresence } from '../../src/services'
@@ -49,7 +49,7 @@ export default function ChatsTab() {
   }, [refresh])
 
   const renderItem = ({ item }: { item: ConvItem }) => (
-    <TouchableOpacity style={s.item} onPress={() => router.push(`/chat/${encodeURIComponent(item.id)}`)}>
+    <TouchableOpacity style={s.item} onPress={() => router.push(`/chat/${encodeURIComponent(item.id)}?name=${encodeURIComponent(item.name)}`)}>
       <View style={s.avatar}>
         <Text style={s.avatarText}>{item.initial}</Text>
       </View>
@@ -72,7 +72,12 @@ export default function ChatsTab() {
           <Text style={s.emptyHint}>添加好友开始对话</Text>
         </View>
       ) : (
-        <FlatList data={conversations} renderItem={renderItem} keyExtractor={i => i.id} />
+        <FlatList
+          data={conversations}
+          renderItem={renderItem}
+          keyExtractor={i => i.id}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor="#25D366" />}
+        />
       )}
     </View>
   )
