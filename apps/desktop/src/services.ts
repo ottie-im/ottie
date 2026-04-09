@@ -133,6 +133,7 @@ export async function recallMessage(roomId: string, messageId: string): Promise<
 // ---- Friends ----
 
 export async function searchUsers(query: string) { return getMatrix().searchUsers(query) }
+export function onFriendRequest(callback: (req: any) => void) { return getMatrix().onFriendRequest(callback) }
 export async function sendFriendRequest(userId: string, message?: string) { return getMatrix().sendFriendRequest(userId, message) }
 export async function respondToFriendRequest(roomId: string, accept: boolean) { return getMatrix().respondToFriendRequest(roomId, accept) }
 export function getFriends() { return getMatrix().getFriends() }

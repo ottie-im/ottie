@@ -14,7 +14,7 @@ import {
   respondToFriendRequest, sendTyping, onTyping,
   onPresenceChange, getPresence, sendReadReceipt, onReadReceipt,
   uploadAndSendImage, uploadAndSendFile, mxcToHttp,
-  searchMessages,
+  searchMessages, onFriendRequest,
 } from './services'
 
 function formatTime(ts?: number): string {
@@ -56,12 +56,13 @@ export function MainLayout() {
     sidebarView, setSidebarView, setCurrentView,
     typingUsers, setTypingUsers,
     presenceMap, setPresence: setPresenceState,
-    friends, setFriends,
+    friends, setFriends, friendRequests, setFriendRequests,
     pendingDecision, setPendingDecision,
     isSendingMessage, setIsSendingMessage,
     isLLMProcessing, setIsLLMProcessing,
     setGlobalError,
     screenNotifications, addScreenNotification, removeScreenNotification,
+    replyingTo, setReplyingTo,
   } = useAppStore()
 
   const [userSearchResults, setUserSearchResults] = useState<any[]>([])
@@ -234,6 +235,19 @@ export function MainLayout() {
     try { setFriends(getFriends()) } catch {}
   }, [conversations, setFriends])
 
+  // Listen for incoming friend requests
+  useEffect(() => {
+    try {
+      const unsub = onFriendRequest((req: any) => {
+        const current = useAppStore.getState().friendRequests
+        if (!current.some(r => r.id === req.id)) {
+          setFriendRequests([...current, req])
+        }
+      })
+      return unsub
+    } catch { return () => {} }
+  }, [setFriendRequests])
+
   const activeConv = conversations.find(c => c.id === activeConversationId)
   const activeTyping = activeConversationId ? (typingUsers[activeConversationId] ?? []) : []
   const typingText = activeTyping.length > 0 ? '正在输入...' : undefined
@@ -311,10 +325,11 @@ export function MainLayout() {
     if (!pendingApproval) return
     setIsSendingMessage(true)
     try {
-      const msg = await sendMessage(pendingApproval.targetRoom, pendingApproval.draft)
+      const msg = await sendMessage(pendingApproval.targetRoom, pendingApproval.draft, replyingTo?.id)
       addMessage({
         id: msg.id, type: 'outgoing', body: pendingApproval.draft,
         time: formatTime(), status: 'sent',
+        replyTo: replyingTo ? { sender: replyingTo.sender, body: replyingTo.body } : undefined,
       })
     } catch (err: any) {
       setGlobalError('消息发送失败：' + (err.message ?? '请重试'))
@@ -322,6 +337,7 @@ export function MainLayout() {
       setIsSendingMessage(false)
     }
     setPendingApproval(null)
+    setReplyingTo(null)
   }
 
   const handleReject = () => setPendingApproval(null)
@@ -392,7 +408,7 @@ export function MainLayout() {
   const contactsPanel = (
     <OttieContactPanel
       friends={friends}
-      friendRequests={[]}
+      friendRequests={friendRequests}
       onStartChat={handleSelectConversation}
       onAcceptRequest={handleAcceptRequest}
       onRejectRequest={handleRejectRequest}
@@ -475,6 +491,8 @@ export function MainLayout() {
                       mediaType={msg.mediaType}
                       mediaUrl={msg.mediaUrl}
                       fileName={msg.fileName}
+                      replyTo={msg.replyTo}
+                      onReply={() => setReplyingTo({ id: msg.id, sender: msg.senderId ?? 'unknown', body: msg.body })}
                     />
                   ))}
                   {isLLMProcessing && (
@@ -523,7 +541,13 @@ export function MainLayout() {
             </div>
 
             <div onKeyDown={handleInputChange}>
-              <OttieInput onSend={handleSend} onAttach={handleAttach} disabled={isSendingMessage || isLLMProcessing} />
+              <OttieInput
+                onSend={handleSend}
+                onAttach={handleAttach}
+                disabled={isSendingMessage || isLLMProcessing}
+                replyingTo={replyingTo}
+                onCancelReply={() => setReplyingTo(null)}
+              />
             </div>
           </>
         ) : (

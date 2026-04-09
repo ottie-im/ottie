@@ -8,9 +8,9 @@
 import { OttieMatrix } from '@ottie-im/matrix'
 import type { OttieMessage, Unsubscribe } from '@ottie-im/contracts'
 
-// 默认连本机 Tuwunel，实际使用时改成服务器地址
-const MATRIX_BASE_URL = 'http://localhost:8008'
-const REG_TOKEN = 'ottie-dev-token'
+// 通过环境变量配置，默认连本机 Tuwunel
+const MATRIX_BASE_URL = process.env.EXPO_PUBLIC_MATRIX_URL ?? 'http://localhost:8008'
+const REG_TOKEN = process.env.EXPO_PUBLIC_REG_TOKEN ?? 'ottie-dev-token'
 
 let matrix: OttieMatrix | null = null
 let syncing = false
