@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { useLocalSearchParams, Stack } from 'expo-router'
 import { useStore } from '../../src/store'
-import { sendMessage, getMessages, onMessage, getSession, sendReadReceipt } from '../../src/services'
+import { sendMessage, getRoomMessages, getUserId, sendReadReceipt } from '../../src/services'
 
 interface ChatMsg {
   id: string
@@ -17,7 +17,7 @@ export default function ChatScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>()
   const roomId = decodeURIComponent(id ?? '')
   const contactName = name ? decodeURIComponent(name) : '聊天'
-  const { userId } = useStore()
+  const userId = getUserId()
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [text, setText] = useState('')
   const [replyingTo, setReplyingTo] = useState<ChatMsg | null>(null)
@@ -25,12 +25,12 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!roomId) return
-    getMessages(roomId, 50).then(msgs => {
+    getRoomMessages(roomId, 50).then(msgs => {
       const chatMsgs = msgs.map(m => ({
-        id: m.id,
-        type: (m.senderId === userId ? 'outgoing' : 'incoming') as 'outgoing' | 'incoming',
-        body: m.content.type === 'text' ? m.content.body : '[media]',
-        time: new Date(m.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        id: m.event_id,
+        type: (m.sender === userId ? 'outgoing' : 'incoming') as 'outgoing' | 'incoming',
+        body: m.content?.body ?? '[media]',
+        time: new Date(m.origin_server_ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
         sender: m.senderId,
         status: m.senderId === userId ? 'sent' as const : undefined,
       })).reverse()

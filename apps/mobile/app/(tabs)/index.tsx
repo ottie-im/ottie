@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState } from 'react'
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../../src/store'
-import { getRooms, getSession, getPresence } from '../../src/services'
+import { getJoinedRooms, getRoomMembers, getRoomMessages, getUserId } from '../../src/services'
 
 interface ConvItem {
   id: string
@@ -14,45 +14,41 @@ interface ConvItem {
 
 export default function ChatsTab() {
   const { conversations, setConversations } = useStore()
+  const [refreshing, setRefreshing] = useState(false)
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     try {
-      const rooms = getRooms()
-      const session = getSession()
-      if (!rooms || !session) return
-
-      const convs: ConvItem[] = rooms
-        .filter((r: any) => r.getMyMembership() === 'join')
-        .map((room: any) => {
-          const members = room.getJoinedMembers()
-          const other = members.find((m: any) => m.userId !== session.userId)
-          const lastEvent = room.timeline?.[room.timeline.length - 1]
-          const name = other?.name ?? room.name ?? room.roomId
-          return {
-            id: room.roomId,
+      const uid = getUserId()
+      if (!uid) return
+      const roomIds = await getJoinedRooms()
+      const convs: ConvItem[] = []
+      for (const roomId of roomIds.slice(0, 20)) {
+        try {
+          const members = await getRoomMembers(roomId)
+          const other = members.find(m => m.userId !== uid)
+          const msgs = await getRoomMessages(roomId, 1)
+          const lastMsg = msgs[msgs.length - 1]
+          const name = other?.displayName ?? roomId
+          convs.push({
+            id: roomId,
             name,
-            lastMessage: lastEvent?.getContent()?.body ?? '',
-            time: lastEvent ? new Date(lastEvent.getTs()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '',
+            lastMessage: lastMsg?.content?.body ?? '',
+            time: lastMsg ? new Date(lastMsg.origin_server_ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '',
             initial: name.charAt(0).toUpperCase(),
-          }
-        })
-        .filter((c: ConvItem) => c.name)
-
+          })
+        } catch {}
+      }
       setConversations(convs)
     } catch {}
   }, [setConversations])
 
-  useEffect(() => {
-    refresh()
-    const interval = setInterval(refresh, 3000)
-    return () => clearInterval(interval)
-  }, [refresh])
+  useEffect(() => { refresh() }, [refresh])
+
+  const onRefresh = async () => { setRefreshing(true); await refresh(); setRefreshing(false) }
 
   const renderItem = ({ item }: { item: ConvItem }) => (
     <TouchableOpacity style={s.item} onPress={() => router.push(`/chat/${encodeURIComponent(item.id)}?name=${encodeURIComponent(item.name)}`)}>
-      <View style={s.avatar}>
-        <Text style={s.avatarText}>{item.initial}</Text>
-      </View>
+      <View style={s.avatar}><Text style={s.avatarText}>{item.initial}</Text></View>
       <View style={s.itemContent}>
         <View style={s.itemHeader}>
           <Text style={s.itemName} numberOfLines={1}>{item.name}</Text>
@@ -67,16 +63,16 @@ export default function ChatsTab() {
     <View style={s.container}>
       {conversations.length === 0 ? (
         <View style={s.empty}>
-          <Text style={s.emptyIcon}>🦦</Text>
-          <Text style={s.emptyText}>还没有聊天</Text>
-          <Text style={s.emptyHint}>添加好友开始对话</Text>
+          <Text style={{ fontSize: 64, marginBottom: 16 }}>🦦</Text>
+          <Text style={{ fontSize: 18, fontWeight: '500', color: '#111b21' }}>还没有聊天</Text>
+          <Text style={{ fontSize: 14, color: '#667781', marginTop: 8 }}>添加好友开始对话</Text>
         </View>
       ) : (
         <FlatList
           data={conversations}
           renderItem={renderItem}
           keyExtractor={i => i.id}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor="#25D366" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#25D366" />}
         />
       )}
     </View>
@@ -94,7 +90,4 @@ const s = StyleSheet.create({
   itemTime: { fontSize: 12, color: '#667781' },
   itemMessage: { fontSize: 14, color: '#667781' },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyIcon: { fontSize: 64, marginBottom: 16 },
-  emptyText: { fontSize: 18, fontWeight: '500', color: '#111b21' },
-  emptyHint: { fontSize: 14, color: '#667781', marginTop: 8 },
 })

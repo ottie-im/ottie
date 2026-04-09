@@ -23,6 +23,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#25D366"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

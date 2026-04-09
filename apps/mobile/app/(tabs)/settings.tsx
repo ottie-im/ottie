@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native'
 import { useStore } from '../../src/store'
-import { getProfile, setDisplayName, getMatrix } from '../../src/services'
+import { getProfile, setDisplayName, getUserId } from '../../src/services'
 
 export default function SettingsTab() {
   const { userId, setLoggedOut } = useStore()

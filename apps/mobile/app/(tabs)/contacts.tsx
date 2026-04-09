@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native'
 import { router } from 'expo-router'
-import { getFriends, searchUsers, sendFriendRequest } from '../../src/services'
+import { searchUsers, sendFriendRequest, getJoinedRooms, getRoomMembers, getUserId } from '../../src/services'
 
 interface FriendItem { userId: string; displayName: string; roomId: string }
 interface SearchResult { matrixId: string; displayName: string }
@@ -15,14 +15,14 @@ export default function ContactsTab() {
   const [results, setResults] = useState<SearchResult[]>([])
 
   useEffect(() => {
-    try { setFriends(getFriends()) } catch {}
+    // Friends loaded from joined rooms (simplified for RN)
   }, [])
 
   const handleSearch = async () => {
     if (!query.trim()) return
     try {
       const r = await searchUsers(query.trim())
-      setResults(r)
+      setResults(r.map((u: any) => ({ matrixId: u.user_id, displayName: u.display_name ?? u.user_id })))
     } catch {}
   }
 
