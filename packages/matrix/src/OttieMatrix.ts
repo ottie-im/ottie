@@ -106,10 +106,14 @@ export class OttieMatrix {
 
   async login(username: string, password: string): Promise<Session> {
     const tempClient = sdk.createClient({ baseUrl: this.config.baseUrl })
+    // Support both username and email login
+    const identifier = username.includes('@')
+      ? { type: 'm.id.thirdparty', medium: 'email', address: username }
+      : { type: 'm.id.user', user: username }
     const resp = await tempClient.login('m.login.password', {
-      user: username,
+      identifier,
       password,
-    })
+    } as any)
 
     this.session = {
       accessToken: resp.access_token!,

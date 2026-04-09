@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 export interface DeviceInfo {
   id: string
@@ -12,6 +12,7 @@ export interface DeviceInfo {
 interface OttieDevicePanelProps {
   devices: DeviceInfo[]
   onSendCommand?: (deviceId: string) => void
+  onRenameDevice?: (deviceId: string, newName: string) => void
 }
 
 const statusStyle: Record<string, { color: string; text: string }> = {
@@ -25,7 +26,17 @@ const typeIcon: Record<string, string> = {
   mobile: '📱',
 }
 
-export function OttieDevicePanel({ devices, onSendCommand }: OttieDevicePanelProps) {
+export function OttieDevicePanel({ devices, onSendCommand, onRenameDevice }: OttieDevicePanelProps) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+
+  const handleRename = (deviceId: string) => {
+    if (editName.trim() && onRenameDevice) {
+      onRenameDevice(deviceId, editName.trim())
+    }
+    setEditingId(null)
+  }
+
   return (
     <div style={{ fontFamily: 'var(--font-family)' }}>
       <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
@@ -61,9 +72,25 @@ export function OttieDevicePanel({ devices, onSendCommand }: OttieDevicePanelPro
                 <div style={{ fontSize: '28px' }}>{typeIcon[device.type] ?? '💻'}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                      {device.name}
-                    </span>
+                    {editingId === device.id ? (
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <input
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleRename(device.id)}
+                          autoFocus
+                          style={{ fontSize: '14px', padding: '2px 6px', border: '1px solid var(--border)', borderRadius: '4px', width: '120px' }}
+                        />
+                        <button onClick={() => handleRename(device.id)} style={{ fontSize: '12px', background: 'var(--ottie-green)', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer' }}>✓</button>
+                      </div>
+                    ) : (
+                      <span
+                        style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', cursor: onRenameDevice ? 'pointer' : 'default' }}
+                        onClick={() => { if (onRenameDevice) { setEditingId(device.id); setEditName(device.name) } }}
+                      >
+                        {device.name} {onRenameDevice ? '✏️' : ''}
+                      </span>
+                    )}
                     <span style={{ fontSize: '11px', color: s.color }}>● {s.text}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
