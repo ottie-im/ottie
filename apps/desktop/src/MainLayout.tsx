@@ -14,7 +14,7 @@ import {
   respondToFriendRequest, sendTyping, onTyping,
   onPresenceChange, getPresence, sendReadReceipt, onReadReceipt,
   uploadAndSendImage, uploadAndSendFile, mxcToHttp,
-  searchMessages, onFriendRequest,
+  searchMessages, onFriendRequest, getDeviceAgentStatus,
 } from './services'
 
 function formatTime(ts?: number): string {
@@ -66,6 +66,7 @@ export function MainLayout() {
   } = useAppStore()
 
   const [userSearchResults, setUserSearchResults] = useState<any[]>([])
+  const [deviceStatus, setDeviceStatus] = useState<{ daemonStatus: string; agents: any[] } | null>(null)
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -74,13 +75,26 @@ export function MainLayout() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, pendingApproval, pendingDecision])
 
+  // Poll device agent status when in device room
+  useEffect(() => {
+    if (activeConversationId !== DEVICE_ROOM_ID) return
+    const check = () => setDeviceStatus(getDeviceAgentStatus())
+    check()
+    const interval = setInterval(check, 5000)
+    return () => clearInterval(interval)
+  }, [activeConversationId])
+
   // Load conversations — show cache first, then refresh from server
   // 虚拟联系人：我的电脑（直接跟 OpenClaw 对话）
   const DEVICE_ROOM_ID = '__ottie_device__'
+  const deviceOnline = deviceStatus?.daemonStatus === 'connected'
+  const agentCount = deviceStatus?.agents?.length ?? 0
   const deviceConversation: ConversationItem = {
     id: DEVICE_ROOM_ID,
     name: '🖥️ 我的电脑',
-    lastMessage: 'OpenClaw 设备助手',
+    lastMessage: deviceOnline
+      ? `设备已连接 · ${agentCount} 个 agent`
+      : '设备助手',
     time: '',
     online: true,
   }
@@ -136,6 +150,25 @@ export function MainLayout() {
       })
       // Listen for screen notifications (Phase 4 — device awareness)
       const unsubNotification = a.onNotification((event) => {
+        // 设备房间：把通知结果显示为聊天消息
+        const store = useAppStore.getState()
+        if (store.activeConversationId === DEVICE_ROOM_ID) {
+          // 找到最近的 status 消息并替换，或追加新消息
+          const statusMsg = store.messages.find(m => m.body.startsWith('⏳'))
+          if (statusMsg) {
+            store.setMessages(store.messages.map(m => m.id === statusMsg.id
+              ? { ...m, body: event.content, status: 'sent' as const }
+              : m
+            ))
+          } else {
+            store.addMessage({
+              id: `device_${Date.now()}`,
+              type: 'agent-output',
+              body: event.content,
+              time: formatTime(event.timestamp),
+            })
+          }
+        }
         addScreenNotification({
           id: `screen_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           type: event.type,
@@ -208,13 +241,20 @@ export function MainLayout() {
     if (activeConversationId === DEVICE_ROOM_ID) {
       const cached = loadCachedMessages(activeConversationId)
       if (cached.length > 0) setMessages(cached)
-      else setMessages([{
-        id: 'device_welcome',
-        type: 'incoming' as const,
-        body: '你好！我是你的设备助手。你可以让我打开浏览器、搜索信息、执行命令等。试试说"打开浏览器搜索今天的天气"',
-        time: formatTime(),
-        senderId: 'device',
-      }])
+      else {
+        const status = getDeviceAgentStatus()
+        const connected = status?.daemonStatus === 'connected'
+        const welcomeText = connected
+          ? `设备已连接（${status!.agents?.length ?? 0} 个 agent 可用）。你可以让我执行代码、搜索信息、操作文件等。`
+          : '你好！我是你的设备助手。你可以让我打开浏览器、搜索信息、执行命令等。试试说"打开浏览器搜索今天的天气"'
+        setMessages([{
+          id: 'device_welcome',
+          type: 'incoming' as const,
+          body: welcomeText,
+          time: formatTime(),
+          senderId: 'device',
+        }])
+      }
       return
     }
 
@@ -298,68 +338,31 @@ export function MainLayout() {
 
     addMessage({ id: `intent_${Date.now()}`, type: 'user-intent', body: text, time: formatTime() })
 
-    // 🖥️ 设备对话：直接走 OpenClaw，不走改写/审批
+    // 🖥️ 设备对话：走 adapter 的 sendCommand（内部自动路由到 Paseo 或 OpenClaw）
     if (activeConversationId === DEVICE_ROOM_ID) {
       setIsLLMProcessing(true)
 
-      // 状态消息 ID（用来更新进度）
       const statusId = `status_${Date.now()}`
       addMessage({
         id: statusId,
         type: 'agent-output',
-        body: '⏳ 正在连接设备 Agent...',
+        body: '⏳ 正在执行...',
         time: formatTime(),
       })
 
-      // 监听 OpenClaw 实时状态事件（Tauri 环境）
-      let unlisten: (() => void) | null = null
       try {
-        const { listen } = await import('@tauri-apps/api/event')
-        unlisten = await listen<string>('openclaw-status', (event) => {
-          const store = useAppStore.getState()
-          store.setMessages(store.messages.map(m =>
-            m.id === statusId ? { ...m, body: event.payload } : m
-          ))
+        const a = getAgent()
+        // sendCommand 内部根据 Paseo 可用性自动路由
+        // 结果通过 onNotification 回调返回
+        await a.sendCommand?.({
+          targetDeviceId: 'local',
+          command: 'exec',
+          args: { intent: text },
+          requireApproval: false,
         })
-      } catch {}
-
-      try {
-        const invoke = (window as any).__TAURI_INTERNALS__?.invoke
-        let result: string
-
-        if (invoke) {
-          try {
-            result = await invoke('openclaw_agent', { agentId: 'main', message: text })
-          } catch (ipcErr: any) {
-            result = `[Tauri IPC 错误] ${ipcErr?.message ?? ipcErr ?? '未知错误'}`
-          }
-        } else {
-          try {
-            const resp = await fetch('http://localhost:18790/v1/agent', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ agent_id: 'main', message: text }),
-            })
-            const data = await resp.json()
-            result = data.result?.payloads?.[0]?.text ?? JSON.stringify(data)
-          } catch (fetchErr: any) {
-            result = `无法连接 OpenClaw: ${fetchErr.message}`
-          }
-        }
-
-        // 停止监听
-        unlisten?.()
-
-        // 替换状态消息为最终结果
-        const msgs1 = useAppStore.getState().messages
-        useAppStore.getState().setMessages(msgs1.map(m => m.id === statusId
-          ? { ...m, body: `🖥️ ${result}`, status: 'sent' as const }
-          : m
-        ))
       } catch (err: any) {
-        unlisten?.()
-        const msgs2 = useAppStore.getState().messages
-        useAppStore.getState().setMessages(msgs2.map(m => m.id === statusId
+        const msgs = useAppStore.getState().messages
+        useAppStore.getState().setMessages(msgs.map(m => m.id === statusId
           ? { ...m, body: `⚠️ ${err?.message ?? '设备 Agent 不可用'}` }
           : m
         ))

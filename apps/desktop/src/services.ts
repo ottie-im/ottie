@@ -52,6 +52,13 @@ export function initAgent() {
     }
   } catch {}
 
+  // 读取 Paseo 配置（设备执行层）
+  let paseoConfig: any = undefined
+  try {
+    const saved = localStorage.getItem('ottie_paseo_config')
+    if (saved) paseoConfig = JSON.parse(saved)
+  } catch {}
+
   const adapter = new MissionControlAdapter({
     name: 'Ottie',
     persona: '友好、得体、简洁',
@@ -61,6 +68,10 @@ export function initAgent() {
     autoApproveThreshold: 0.8,
     boundaries: [],
     llm: llmConfig,
+    paseo: paseoConfig ?? {
+      daemonUrl: import.meta.env.VITE_PASEO_URL ?? 'http://localhost:6767',
+      defaultProvider: 'claude',
+    },
   })
   agent = adapter
   adapter.start()
@@ -207,3 +218,13 @@ export function getSession() { return matrix?.getSession() ?? null }
 
 export function generateInviteUri(): string { return getMatrix().generateInviteUri() }
 export function parseInviteUri(uri: string) { return (getMatrix().constructor as any).parseInviteUri(uri) }
+
+// ---- Device Agent Status ----
+
+export function getDeviceAgentStatus(): { daemonStatus: string; agents: any[] } | null {
+  try {
+    const a = getAgent() as any
+    const paseo = a.getPaseo?.()
+    return paseo?.getStatus() ?? null
+  } catch { return null }
+}
