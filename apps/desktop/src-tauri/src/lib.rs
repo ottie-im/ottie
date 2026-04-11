@@ -1,6 +1,7 @@
 use tauri::{Manager, Emitter};
 use std::sync::Mutex;
 use std::process::{Command, Child, Stdio};
+use std::collections::HashMap;
 
 const OTTIE_PROFILE: &str = "ottie";
 const OTTIE_GATEWAY_PORT: &str = "18790";
@@ -9,7 +10,7 @@ const OTTIE_GATEWAY_PORT: &str = "18790";
 fn full_path() -> String {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
     let existing = std::env::var("PATH").unwrap_or_default();
-    format!("/opt/homebrew/bin:/usr/local/bin:{home}/.nvm/versions/node/v22.16.0/bin:{home}/.nvm/versions/node/v20.19.2/bin:{home}/.nvm/versions/node/v18.20.8/bin:/usr/bin:/bin:{existing}")
+    format!("{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{home}/.nvm/versions/node/v22.16.0/bin:{home}/.nvm/versions/node/v20.19.2/bin:{home}/.nvm/versions/node/v18.20.8/bin:/usr/bin:/bin:{existing}")
 }
 
 /// 创建一个设置了正确 PATH 的 openclaw Command
@@ -22,6 +23,25 @@ fn openclaw_cmd() -> Command {
 struct SidecarState {
     openclaw: Option<Child>,
     screenpipe: Option<Child>,
+    agents: HashMap<String, Child>,
+    agent_entries: HashMap<String, AgentEntry>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct AgentEntry {
+    id: String,
+    provider: String,
+    status: String,
+    cwd: String,
+    created_at: u64,
+    output: String,
+}
+
+#[derive(serde::Serialize)]
+struct ProviderInfo {
+    id: String,
+    available: bool,
+    version: String,
 }
 
 impl Drop for SidecarState {
@@ -30,6 +50,9 @@ impl Drop for SidecarState {
             let _ = child.kill();
         }
         if let Some(ref mut child) = self.screenpipe {
+            let _ = child.kill();
+        }
+        for (_, child) in self.agents.iter_mut() {
             let _ = child.kill();
         }
     }
@@ -371,6 +394,243 @@ fn check_gateway_health() -> bool {
 }
 
 // ============================================================
+// Agent Manager — 原生 agent 进程管理
+// ============================================================
+
+#[tauri::command]
+fn detect_providers() -> Vec<ProviderInfo> {
+    let mut providers = Vec::new();
+
+    // Claude Code CLI
+    let (claude_ok, claude_ver) = {
+        let mut cmd = Command::new("claude");
+        cmd.env("PATH", full_path());
+        match cmd.args(["--version"]).output() {
+            Ok(o) if o.status.success() => (true, String::from_utf8_lossy(&o.stdout).trim().to_string()),
+            _ => (false, String::new()),
+        }
+    };
+    providers.push(ProviderInfo { id: "claude".into(), available: claude_ok, version: claude_ver });
+
+    // Codex CLI
+    let (codex_ok, codex_ver) = {
+        let mut cmd = Command::new("codex");
+        cmd.env("PATH", full_path());
+        match cmd.args(["--version"]).output() {
+            Ok(o) if o.status.success() => (true, String::from_utf8_lossy(&o.stdout).trim().to_string()),
+            _ => (false, String::new()),
+        }
+    };
+    providers.push(ProviderInfo { id: "codex".into(), available: codex_ok, version: codex_ver });
+
+    providers
+}
+
+#[tauri::command]
+fn create_agent(
+    provider: String,
+    cwd: String,
+    prompt: String,
+    state: tauri::State<'_, Mutex<SidecarState>>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    let agent_id = uuid::Uuid::new_v4().to_string();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    // 构建命令
+    let (bin, args): (&str, Vec<String>) = match provider.as_str() {
+        "claude" => ("claude", vec![
+            "-p".into(),
+            "--output-format".into(), "stream-json".into(),
+            "--dangerously-skip-permissions".into(),
+            "--no-session-persistence".into(),
+            prompt.clone(),
+        ]),
+        "codex" => ("codex", vec![
+            "exec".into(),
+            "--json".into(),
+            "--full-access".into(),
+            prompt.clone(),
+        ]),
+        _ => return Err(format!("不支持的 provider: {}", provider)),
+    };
+
+    // spawn 进程
+    let mut cmd = Command::new(bin);
+    cmd.env("PATH", full_path());
+    cmd.current_dir(&cwd);
+    cmd.args(&args);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd.spawn().map_err(|e| {
+        format!("无法启动 {} — 请确认已安装: {}", bin, e)
+    })?;
+
+    // 取出 stdout 给后台线程
+    let stdout = child.stdout.take();
+
+    // 存入 state
+    let entry = AgentEntry {
+        id: agent_id.clone(),
+        provider: provider.clone(),
+        status: "running".into(),
+        cwd: cwd.clone(),
+        created_at: now,
+        output: String::new(),
+    };
+
+    {
+        let mut s = state.lock().unwrap();
+        s.agents.insert(agent_id.clone(), child);
+        s.agent_entries.insert(agent_id.clone(), entry.clone());
+    }
+
+    // emit 创建事件
+    let _ = app_handle.emit("agent-update", &serde_json::json!({
+        "agentId": &agent_id,
+        "status": "running",
+        "provider": &provider,
+    }));
+
+    // 后台线程：读 stdout，解析 JSON，emit 事件
+    let handle = app_handle.clone();
+    let handle2 = app_handle.clone();
+    let aid = agent_id.clone();
+    let prov = provider.clone();
+
+    std::thread::spawn(move || {
+        let mut accumulated = String::new();
+
+        if let Some(stdout) = stdout {
+            use std::io::BufRead;
+            let reader = std::io::BufReader::new(stdout);
+            for line in reader.lines() {
+                let Ok(line): Result<String, _> = line else { break };
+                if line.is_empty() { continue }
+
+                // 尝试解析 JSON
+                if let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) {
+                    let event_type = event["type"].as_str().unwrap_or("");
+
+                    // Claude: assistant message text
+                    if event_type == "assistant" {
+                        if let Some(content) = event["message"]["content"].as_array() {
+                            for c in content {
+                                if c["type"].as_str() == Some("text") {
+                                    if let Some(text) = c["text"].as_str() {
+                                        accumulated.push_str(text);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Claude: final result
+                    if event_type == "result" {
+                        if let Some(result) = event["result"].as_str() {
+                            accumulated = result.to_string();
+                        }
+                    }
+
+                    // Codex: message
+                    if event_type == "message" {
+                        if let Some(content) = event["content"].as_str() {
+                            accumulated.push_str(content);
+                        }
+                    }
+
+                    // Codex: completed
+                    if event_type == "completed" {
+                        if let Some(result) = event["result"].as_str() {
+                            accumulated = result.to_string();
+                        }
+                    }
+
+                    // emit 流式事件
+                    let _ = handle.emit("agent-stream", &serde_json::json!({
+                        "agentId": &aid,
+                        "event": &event,
+                    }));
+                }
+            }
+        }
+
+        // 进程结束 — 等待退出码
+        let state_ref = handle2.state::<Mutex<SidecarState>>();
+        let exit_status = {
+            let mut s = state_ref.lock().unwrap();
+            if let Some(mut child) = s.agents.remove(&aid) {
+                child.wait().ok().map(|s| s.success()).unwrap_or(false)
+            } else {
+                false
+            }
+        };
+
+        let final_status = if exit_status { "idle" } else { "error" };
+
+        // 更新 entry
+        {
+            let mut s = state_ref.lock().unwrap();
+            if let Some(entry) = s.agent_entries.get_mut(&aid) {
+                entry.status = final_status.to_string();
+                entry.output = accumulated.clone();
+            }
+        }
+
+        // emit 完成事件
+        let _ = handle.emit("agent-update", &serde_json::json!({
+            "agentId": &aid,
+            "status": final_status,
+            "provider": &prov,
+            "output": &accumulated,
+        }));
+    });
+
+    Ok(agent_id)
+}
+
+#[tauri::command]
+fn list_agents(state: tauri::State<'_, Mutex<SidecarState>>) -> Vec<AgentEntry> {
+    let s = state.lock().unwrap();
+    s.agent_entries.values().cloned().collect()
+}
+
+#[tauri::command]
+fn cancel_agent(
+    agent_id: String,
+    state: tauri::State<'_, Mutex<SidecarState>>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let mut s = state.lock().unwrap();
+    if let Some(mut child) = s.agents.remove(&agent_id) {
+        let _ = child.kill();
+    }
+    if let Some(entry) = s.agent_entries.get_mut(&agent_id) {
+        entry.status = "cancelled".into();
+    }
+    let _ = app_handle.emit("agent-update", &serde_json::json!({
+        "agentId": &agent_id,
+        "status": "cancelled",
+    }));
+    Ok(())
+}
+
+#[tauri::command]
+fn get_agent_output(
+    agent_id: String,
+    state: tauri::State<'_, Mutex<SidecarState>>,
+) -> Result<String, String> {
+    let s = state.lock().unwrap();
+    s.agent_entries.get(&agent_id)
+        .map(|e| e.output.clone())
+        .ok_or_else(|| format!("Agent {} not found", agent_id))
+}
+
+// ============================================================
 // App entry point
 // ============================================================
 
@@ -382,6 +642,8 @@ pub fn run() {
         .manage(Mutex::new(SidecarState {
             openclaw: None,
             screenpipe: None,
+            agents: HashMap::new(),
+            agent_entries: HashMap::new(),
         }))
         .invoke_handler(tauri::generate_handler![
             check_deps,
@@ -391,6 +653,11 @@ pub fn run() {
             start_gateway,
             restart_gateway,
             openclaw_agent,
+            detect_providers,
+            create_agent,
+            list_agents,
+            cancel_agent,
+            get_agent_output,
         ])
         .setup(|app| {
             // DevTools: Cmd+Option+I 可以打开（已启用 devtools feature）
@@ -438,8 +705,12 @@ pub fn run() {
                 if let Some(ref mut child) = s.screenpipe {
                     let _ = child.kill();
                 }
+                for (_, child) in s.agents.iter_mut() {
+                    let _ = child.kill();
+                }
                 s.openclaw = None;
                 s.screenpipe = None;
+                s.agents.clear();
             }
         })
         .run(tauri::generate_context!())

@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState } from 'react'
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../../src/store'
-import { getJoinedRooms, getRoomMembers, getRoomMessages, getUserId } from '../../src/services'
+import { getJoinedRooms, getRoomMembers, getRoomMessages, getUserId, onMessage } from '../../src/services'
 
 interface ConvItem {
   id: string
@@ -43,6 +43,14 @@ export default function ChatsTab() {
   }, [setConversations])
 
   useEffect(() => { refresh() }, [refresh])
+
+  // 实时消息 → 更新对话列表
+  useEffect(() => {
+    const unsub = onMessage(() => {
+      refresh()
+    })
+    return unsub
+  }, [refresh])
 
   const onRefresh = async () => { setRefreshing(true); await refresh(); setRefreshing(false) }
 

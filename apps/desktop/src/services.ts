@@ -69,7 +69,6 @@ export function initAgent() {
     boundaries: [],
     llm: llmConfig,
     paseo: paseoConfig ?? {
-      daemonUrl: import.meta.env.VITE_PASEO_URL ?? 'http://localhost:6767',
       defaultProvider: 'claude',
     },
   })

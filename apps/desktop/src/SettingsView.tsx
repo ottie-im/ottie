@@ -4,11 +4,14 @@ import { OttieAvatar, OttieAgentSelector, OttieDevicePanel } from '@ottie-im/ui'
 import type { AgentInfo, DeviceInfo } from '@ottie-im/ui'
 import { getProfile, setDisplayName, setAvatar, unblockUser, getMatrix, getAgent, logout } from './services'
 
+const MATRIX_URL = import.meta.env.VITE_MATRIX_URL ?? 'https://ottie.claws.company'
+
 const PROVIDERS = [
-  { id: 'aihubmix', name: 'AIHubMix (推荐)', baseUrl: 'https://aihubmix.com/v1', defaultModel: 'claude-sonnet-4-20250514' },
-  { id: 'anthropic', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-20250514' },
-  { id: 'openai', name: 'OpenAI (GPT-4)', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o' },
-  { id: 'custom', name: '自定义 (兼容 OpenAI)', baseUrl: '', defaultModel: '' },
+  { id: 'aihubmix', name: 'AIHubMix (推荐)', baseUrl: 'https://aihubmix.com/v1', defaultModel: 'claude-sonnet-4-20250514', needsKey: true },
+  { id: 'anthropic', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-20250514', needsKey: true },
+  { id: 'openai', name: 'OpenAI (GPT-4)', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o', needsKey: true },
+  { id: 'ollama', name: 'Ollama (本地模型)', baseUrl: 'http://localhost:11434/v1', defaultModel: 'gemma2:9b', needsKey: false },
+  { id: 'custom', name: '自定义 (兼容 OpenAI)', baseUrl: '', defaultModel: '', needsKey: true },
 ]
 
 export function SettingsView() {
@@ -64,12 +67,34 @@ export function SettingsView() {
     setBlockedUsers(getMatrix().getBlockedUsers())
   }
 
+  // Ollama 状态检测
+  const [ollamaModels, setOllamaModels] = useState<string[]>([])
+  const [ollamaOnline, setOllamaOnline] = useState(false)
+
+  useEffect(() => {
+    if (provider === 'ollama') {
+      fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) })
+        .then(r => r.json())
+        .then(data => {
+          const models = (data.models ?? []).map((m: any) => m.name)
+          setOllamaModels(models)
+          setOllamaOnline(true)
+          if (models.length > 0 && !customModel) setCustomModel(models[0])
+        })
+        .catch(() => { setOllamaOnline(false); setOllamaModels([]) })
+    }
+  }, [provider])
+
+  // QR 码数据
+  const qrData = userId ? `ottie://login?server=${encodeURIComponent(MATRIX_URL)}&user=${encodeURIComponent(userId)}` : ''
+
   const handleSaveApiConfig = async () => {
     const selected = PROVIDERS.find(p => p.id === provider)!
-    const baseUrl = provider === 'custom' ? customBaseUrl : selected.baseUrl
-    const model = provider === 'custom' ? customModel : selected.defaultModel
+    const isOllama = provider === 'ollama'
+    const baseUrl = provider === 'custom' ? customBaseUrl : (isOllama ? selected.baseUrl : selected.baseUrl)
+    const model = (provider === 'custom' || isOllama) ? (customModel || selected.defaultModel) : selected.defaultModel
 
-    if (provider !== 'none' && !apiKey.trim()) {
+    if (selected.needsKey && !apiKey.trim()) {
       setConfigMsg('请输入 API Key')
       return
     }
@@ -78,7 +103,8 @@ export function SettingsView() {
     setConfigMsg(null)
 
     try {
-      localStorage.setItem('ottie_agent_config', JSON.stringify({ provider, apiKey, model, baseUrl }))
+      const effectiveKey = isOllama ? 'ollama' : apiKey
+      localStorage.setItem('ottie_agent_config', JSON.stringify({ provider, apiKey: effectiveKey, model, baseUrl }))
 
       if ((window as any).__TAURI__) {
         const { invoke } = await import('@tauri-apps/api/core')
@@ -211,19 +237,61 @@ export function SettingsView() {
               ))}
             </div>
 
-            {/* API Key */}
-            <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>API Key</div>
-              <input
-                type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-                placeholder="sk-..."
-                style={{
-                  width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
-                  borderRadius: '8px', fontSize: '13px', fontFamily: 'var(--font-family)',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+            {/* API Key — Ollama 不需要 */}
+            {provider !== 'ollama' && (
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>API Key</div>
+                <input
+                  type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  style={{
+                    width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
+                    borderRadius: '8px', fontSize: '13px', fontFamily: 'var(--font-family)',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Ollama 模型选择 */}
+            {provider === 'ollama' && (
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px',
+                }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>本地模型</span>
+                  <span style={{
+                    fontSize: '11px', padding: '2px 8px', borderRadius: '10px',
+                    background: ollamaOnline ? '#f0fdf4' : '#fef2f2',
+                    color: ollamaOnline ? '#16a34a' : '#dc2626',
+                  }}>
+                    {ollamaOnline ? `${ollamaModels.length} 个模型可用` : 'Ollama 未运行'}
+                  </span>
+                </div>
+                {ollamaOnline && ollamaModels.length > 0 ? (
+                  <select
+                    value={customModel}
+                    onChange={e => setCustomModel(e.target.value)}
+                    style={{
+                      width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
+                      borderRadius: '8px', fontSize: '13px', fontFamily: 'var(--font-family)',
+                      boxSizing: 'border-box', background: '#fff',
+                    }}
+                  >
+                    {ollamaModels.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" value={customModel} onChange={e => setCustomModel(e.target.value)}
+                    placeholder="模型名称（如 gemma2:9b）"
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'var(--font-family)' }} />
+                )}
+                {!ollamaOnline && (
+                  <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                    请先启动 Ollama：ollama serve
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Custom fields */}
             {provider === 'custom' && (
@@ -276,6 +344,41 @@ export function SettingsView() {
             (a as any).sendCommand?.(cmd)
           } catch {}
         }} />)}
+
+        {/* 手机连接 */}
+        {card(
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>手机连接</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              在手机上打开 Ottie，用同一账号登录，消息自动同步。
+            </div>
+            {qrData && (
+              <div style={{ textAlign: 'center', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                <div style={{
+                  display: 'inline-block', padding: '12px', background: '#fff', borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                }}>
+                  {/* QR 码用 SVG 渲染 — 简单的文本 QR 替代 */}
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    服务器地址
+                  </div>
+                  <div style={{
+                    fontSize: '13px', fontFamily: 'monospace', color: 'var(--text-primary)',
+                    padding: '8px', background: '#f0f2f5', borderRadius: '4px', wordBreak: 'break-all',
+                  }}>
+                    {MATRIX_URL}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                    账号：{userId}
+                  </div>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '12px' }}>
+                  手机用相同的用户名和密码登录即可
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Blocked Users */}
         {card(

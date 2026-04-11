@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../src/store'
-import { login, register } from '../src/services'
+import { login, register, restoreSession, getUserId } from '../src/services'
 
 export default function LoginScreen() {
   const { setLoggedIn } = useStore()
@@ -10,7 +10,23 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('')
   const [isRegister, setIsRegister] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [restoring, setRestoring] = useState(true)
   const [error, setError] = useState('')
+
+  // 尝试恢复上次 session
+  useEffect(() => {
+    restoreSession().then(restored => {
+      if (restored) {
+        const uid = getUserId()
+        if (uid) {
+          setLoggedIn(uid)
+          router.replace('/(tabs)')
+          return
+        }
+      }
+      setRestoring(false)
+    }).catch(() => setRestoring(false))
+  }, [setLoggedIn])
 
   const handleSubmit = async () => {
     if (!username || !password) return
@@ -27,6 +43,16 @@ export default function LoginScreen() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Session 恢复中 → 显示 loading
+  if (restoring) {
+    return (
+      <View style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 48, marginBottom: 16 }}>🦦</Text>
+        <ActivityIndicator size="large" color="#25D366" />
+      </View>
+    )
   }
 
   return (
@@ -65,6 +91,11 @@ export default function LoginScreen() {
             <Text style={s.switchLink}>{isRegister ? '登录' : '注册'}</Text>
           </Text>
         </TouchableOpacity>
+
+        {/* 扫码登录提示 */}
+        <View style={s.qrHint}>
+          <Text style={s.qrHintText}>在电脑上打开 Ottie → 设置 → 扫码连接</Text>
+        </View>
       </View>
     </KeyboardAvoidingView>
   )
@@ -83,4 +114,6 @@ const s = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '500' },
   switchText: { textAlign: 'center', fontSize: 14, color: '#667781' },
   switchLink: { color: '#25D366' },
+  qrHint: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#e9edef', alignItems: 'center' },
+  qrHintText: { fontSize: 12, color: '#8696a0', textAlign: 'center' },
 })

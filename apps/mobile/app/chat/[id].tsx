@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { useLocalSearchParams, Stack } from 'expo-router'
 import { useStore } from '../../src/store'
-import { sendMessage, getRoomMessages, getUserId, sendReadReceipt } from '../../src/services'
+import { sendMessage, getRoomMessages, getUserId, sendReadReceipt, onMessage } from '../../src/services'
 
 interface ChatMsg {
   id: string
