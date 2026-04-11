@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.openclaw.ai/config.schema.json",
+  "gateway": {
+    "port": 18789,
+    "bind": "loopback",
+    "auth": "none"
+  },
+  "agents": {
+    "list": [
+      {
+        "id": "personal",
+        "name": "Ottie Personal",
+        "default": true,
+        "workspace": "./personal",
+        "model": "anthropic/claude-sonnet-4-20250514",
+        "tools": {
+          "allow": ["sessions_send", "sessions_list", "agents_list", "read", "write"],
+          "deny": ["exec", "browser"]
+        },
+        "subagents": {
+          "allowAgents": ["device"]
+        }
+      },
+      {
+        "id": "device",
+        "name": "Ottie Device",
+        "workspace": "./device",
+        "model": "anthropic/claude-haiku-3-20250415",
+        "tools": {
+          "allow": ["group:fs", "exec", "browser", "web_search", "sessions_send"],
+          "deny": []
+        }
+      }
+    ]
+  },
+  "tools": {
+    "agentToAgent": {
+      "enabled": true,
+      "allow": ["personal", "device"]
+    }
+  }
+}

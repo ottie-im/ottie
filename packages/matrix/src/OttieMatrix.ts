@@ -34,6 +34,11 @@ function matrixEventToOttieMessage(event: MatrixEvent): OttieMessage {
       ? { type: 'file', filename: content.body ?? '', url: content.url ?? '', mimeType: content.info?.mimetype ?? 'application/octet-stream' }
       : { type: 'text', body: content.body ?? '' }
 
+  // 透传 Ottie 自定义 metadata（如原始意图、设备操作标记等）
+  if (content.ottie_meta) {
+    (msgContent as any).ottie_meta = content.ottie_meta
+  }
+
   return {
     id: event.getId() ?? '',
     roomId: event.getRoomId() ?? '',
@@ -190,6 +195,11 @@ export class OttieMatrix {
       matrixContent = { msgtype: 'm.file', body: content.filename, url: content.url, info: { mimetype: content.mimeType } }
     } else {
       matrixContent = { msgtype: 'm.text', body: JSON.stringify(content) }
+    }
+
+    // Ottie 自定义 metadata（接收方的 Agent 可以读取）
+    if ((content as any).ottie_meta) {
+      matrixContent['ottie_meta'] = (content as any).ottie_meta
     }
 
     // Reply threading (Matrix m.relates_to)

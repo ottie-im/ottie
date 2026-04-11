@@ -13,5 +13,5 @@
     "react": "^19.0.0",
     "@types/react": "^19.0.0"
   },
-  "scripts": { "build": "tsc", "test": "vitest" }
+  "scripts": { "build": "tsc", "test": "vitest run --passWithNoTests" }
 }

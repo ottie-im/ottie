@@ -7,7 +7,7 @@
 
 import { OttieMatrix } from '@ottie-im/matrix'
 import type { OttieMessage, Unsubscribe, OttieAgentAdapter } from '@ottie-im/contracts'
-import { OpenClawAdapter } from '@ottie-im/agent-adapter'
+import { MissionControlAdapter } from '@ottie-im/agent-adapter'
 
 const MATRIX_BASE_URL = import.meta.env.VITE_MATRIX_URL ?? 'http://localhost:8008'
 const REG_TOKEN = import.meta.env.VITE_REG_TOKEN ?? 'ottie-dev-token'
@@ -32,11 +32,34 @@ export function getAgent(): OttieAgentAdapter {
 
 // ---- Agent ----
 
-export function initAgent(llmConfig?: { baseUrl: string; apiKey: string; model: string }) {
-  const adapter = new OpenClawAdapter({
+const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? 'http://localhost:18790'
+
+export function initAgent() {
+  // 读取用户保存的 LLM 配置
+  let llmConfig: any = undefined
+  try {
+    const saved = localStorage.getItem('ottie_agent_config')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (parsed.apiKey) {
+        llmConfig = {
+          provider: (parsed.provider ?? 'custom') as any,
+          apiKey: parsed.apiKey,
+          model: parsed.model,
+          baseUrl: parsed.baseUrl,
+        }
+      }
+    }
+  } catch {}
+
+  const adapter = new MissionControlAdapter({
     name: 'Ottie',
     persona: '友好、得体、简洁',
-    memoryPath: '/tmp/ottie-memory.md',
+    gatewayUrl: GATEWAY_URL,
+    agentId: 'personal',
+    deviceAgentId: 'device',
+    autoApproveThreshold: 0.8,
+    boundaries: [],
     llm: llmConfig,
   })
   agent = adapter
@@ -117,8 +140,10 @@ export async function startSync(): Promise<void> {
 
 // ---- Messages (pure IM, no Agent logic) ----
 
-export async function sendMessage(roomId: string, body: string, replyTo?: string): Promise<OttieMessage> {
-  return getMatrix().sendMessage(roomId, { type: 'text', body }, replyTo)
+export async function sendMessage(roomId: string, body: string, replyTo?: string, ottieMeta?: Record<string, unknown>): Promise<OttieMessage> {
+  const content: any = { type: 'text', body }
+  if (ottieMeta) content.ottie_meta = ottieMeta
+  return getMatrix().sendMessage(roomId, content, replyTo)
 }
 export async function getMessages(roomId: string, limit = 50): Promise<OttieMessage[]> {
   return getMatrix().getMessages(roomId, limit)

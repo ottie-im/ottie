@@ -35,13 +35,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": [
-      "binaries/screenpipe"
-    ]
+    "externalBin": []
   },
   "plugins": {
     "shell": {
       "scope": [
+        {
+          "name": "openclaw",
+          "cmd": "openclaw",
+          "args": true
+        },
         {
           "name": "screenpipe",
           "cmd": "binaries/screenpipe",

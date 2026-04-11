@@ -3,16 +3,8 @@ import { useAppStore } from './store'
 import { OttieLogin, OttieToast, OttieConnectionBar } from '@ottie-im/ui'
 import { MainLayout } from './MainLayout'
 import { SettingsView } from './SettingsView'
+import { SetupGuide } from './SetupGuide'
 import { login, register, startSync, setPresence, tryAutoLogin, initAgent } from './services'
-
-// Read LLM config from environment
-const llmConfig = (() => {
-  const baseUrl = import.meta.env.VITE_LLM_BASE_URL
-  const apiKey = import.meta.env.VITE_LLM_API_KEY
-  const model = import.meta.env.VITE_LLM_MODEL
-  if (baseUrl && apiKey && model) return { baseUrl, apiKey, model }
-  return undefined
-})()
 
 export function App() {
   const {
@@ -20,28 +12,41 @@ export function App() {
     connectionStatus, setConnectionStatus,
     globalError, setGlobalError,
     isSyncing, setIsSyncing,
+    agentStatus, setAgentStatus,
+    setupComplete, setSetupComplete,
   } = useAppStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const [autoLoginDone, setAutoLoginDone] = useState(false)
 
-  // Try auto-login on startup
+  // Try auto-login on startup (only after setup is complete)
   useEffect(() => {
+    if (!setupComplete) return
     tryAutoLogin().then(async (userId) => {
       if (userId) {
         setIsSyncing(true)
         try {
           await startSync()
-          initAgent(llmConfig) // Agent 通过接口初始化，LLM 配置传给 Agent
+          initAgent()
           setPresence('online').catch(() => {})
           setConnectionStatus('connected')
+
+          // Check if agent has API key configured
+          const config = localStorage.getItem('ottie_agent_config')
+          if (config) {
+            const parsed = JSON.parse(config)
+            setAgentStatus(parsed.apiKey ? 'online' : 'degraded')
+          } else {
+            setAgentStatus('degraded')
+          }
+
           setLoggedIn(userId)
         } catch {}
         setIsSyncing(false)
       }
       setAutoLoginDone(true)
     })
-  }, []) // eslint-disable-line
+  }, [setupComplete]) // eslint-disable-line
 
   const handleLogin = async (username: string, password: string) => {
     setLoading(true)
@@ -50,7 +55,7 @@ export function App() {
       const userId = await login(username, password)
       setIsSyncing(true)
       await startSync()
-      initAgent(llmConfig) // Agent 初始化
+      initAgent()
       setPresence('online').catch(() => {})
       setConnectionStatus('connected')
       setIsSyncing(false)
@@ -70,7 +75,7 @@ export function App() {
       const userId = await register(username, password)
       setIsSyncing(true)
       await startSync()
-      initAgent(llmConfig)
+      initAgent()
       setPresence('online').catch(() => {})
       setConnectionStatus('connected')
       setIsSyncing(false)
@@ -83,6 +88,12 @@ export function App() {
     } finally { setLoading(false) }
   }
 
+  // Phase A: First-run setup
+  if (!setupComplete) {
+    return <SetupGuide onComplete={() => setSetupComplete(true)} />
+  }
+
+  // Phase B: Auto-login loading
   if (!autoLoginDone) {
     return (
       <div style={{
@@ -95,6 +106,7 @@ export function App() {
     )
   }
 
+  // Phase C+D: Login or Main app
   return (
     <>
       {loggedIn && <OttieConnectionBar status={connectionStatus} />}

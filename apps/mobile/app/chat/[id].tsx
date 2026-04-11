@@ -6,7 +6,7 @@ import { sendMessage, getRoomMessages, getUserId, sendReadReceipt } from '../../
 
 interface ChatMsg {
   id: string
-  type: 'outgoing' | 'incoming'
+  type: 'agent-output' | 'incoming'
   body: string
   time: string
   sender?: string
@@ -28,7 +28,7 @@ export default function ChatScreen() {
     getRoomMessages(roomId, 50).then(msgs => {
       const chatMsgs = msgs.map(m => ({
         id: m.event_id,
-        type: (m.sender === userId ? 'outgoing' : 'incoming') as 'outgoing' | 'incoming',
+        type: (m.sender === userId ? 'agent-output' : 'incoming') as 'agent-output' | 'incoming',
         body: m.content?.body ?? '[media]',
         time: new Date(m.origin_server_ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
         sender: m.senderId,
@@ -44,7 +44,7 @@ export default function ChatScreen() {
       if (msg.roomId === roomId && msg.content.type === 'text') {
         setMessages(prev => [...prev, {
           id: msg.id,
-          type: msg.senderId === userId ? 'outgoing' : 'incoming',
+          type: msg.senderId === userId ? 'agent-output' : 'incoming',
           body: msg.content.body,
           time: new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
           sender: msg.senderId,
@@ -65,7 +65,7 @@ export default function ChatScreen() {
     try {
       const msg = await sendMessage(roomId, trimmed, replyId)
       setMessages(prev => [...prev, {
-        id: msg.id, type: 'outgoing', body: trimmed, status: 'sent',
+        id: msg.id, type: 'agent-output', body: trimmed, status: 'sent',
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       }])
     } catch {}
@@ -73,14 +73,14 @@ export default function ChatScreen() {
 
   const renderBubble = ({ item }: { item: ChatMsg }) => (
     <TouchableOpacity
-      style={[s.bubble, item.type === 'outgoing' ? s.outgoing : s.incoming]}
+      style={[s.bubble, item.type === 'agent-output' ? s.outgoing : s.incoming]}
       onLongPress={() => setReplyingTo(item)}
       activeOpacity={0.7}
     >
       <Text style={s.bubbleText}>{item.body}</Text>
       <View style={s.bubbleFooter}>
         <Text style={s.bubbleTime}>{item.time}</Text>
-        {item.type === 'outgoing' && (
+        {item.type === 'agent-output' && (
           <Text style={[s.checkmark, item.status === 'read' && s.checkmarkRead]}>
             {item.status === 'read' ? '✓✓' : '✓'}
           </Text>

@@ -100,4 +100,20 @@ export const DEFAULT_CATALOG: Record<string, A2UIComponentDef> = {
       style: { height: props.height ?? '16px' },
     }),
   },
+
+  'text-field': {
+    type: 'text-field',
+    render: (props) => React.createElement('input', {
+      type: 'text',
+      placeholder: props.placeholder ?? '',
+      defaultValue: props.value ?? '',
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => props.onAction?.(e.target.value),
+      style: {
+        width: '100%', padding: '8px 12px',
+        border: '1px solid var(--border)', borderRadius: '8px',
+        fontSize: '14px', fontFamily: 'var(--font-family)',
+        outline: 'none', boxSizing: 'border-box' as const,
+      },
+    }),
+  },
 }

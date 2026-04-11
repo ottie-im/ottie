@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Check, CheckCheck } from 'lucide-react'
 
-type BubbleType = 'outgoing' | 'incoming' | 'intent'
+type BubbleType = 'agent-output' | 'incoming' | 'user-intent'
 
 interface OttieBubbleProps {
   type: BubbleType
@@ -31,7 +31,7 @@ const baseStyle: React.CSSProperties = {
 }
 
 const styles: Record<BubbleType, React.CSSProperties> = {
-  outgoing: {
+  'agent-output': {
     ...baseStyle,
     background: 'var(--green-wash)',
     color: 'var(--text-primary)',
@@ -50,7 +50,7 @@ const styles: Record<BubbleType, React.CSSProperties> = {
     maxWidth: '65%',
     alignSelf: 'flex-start',
   },
-  intent: {
+  'user-intent': {
     ...baseStyle,
     background: 'var(--snow-white)',
     color: 'var(--text-secondary)',
@@ -73,7 +73,7 @@ export function OttieBubble({
   onExpand, onImageClick, onFileDownload,
 }: OttieBubbleProps) {
   const [expanded, setExpanded] = useState(false)
-  const isIntent = type === 'intent'
+  const isIntent = type === 'user-intent'
   const truncatedBody = isIntent && !expanded && body.length > 30 ? body.slice(0, 30) + '...' : body
 
   return (
@@ -89,7 +89,7 @@ export function OttieBubble({
         </div>
       )}
 
-      {type === 'intent' && (
+      {type === 'user-intent' && (
         <span style={{ color: 'var(--text-tertiary)', fontSize: '12px', fontStyle: 'normal' }}>
           {intentPrefix ?? '🦦 你说：'}
         </span>
@@ -151,7 +151,7 @@ export function OttieBubble({
           gap: '4px',
           marginTop: '2px',
         }}>
-          {onReply && type !== 'intent' && (
+          {onReply && type !== 'user-intent' && (
             <button
               onClick={(e) => { e.stopPropagation(); onReply() }}
               style={{
@@ -164,7 +164,7 @@ export function OttieBubble({
             </button>
           )}
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{time}</span>
-          {type === 'outgoing' && status && (
+          {type === 'agent-output' && status && (
             status === 'read'
               ? <CheckCheck size={14} color="var(--read-check)" />
               : <Check size={14} color="var(--text-secondary)" />

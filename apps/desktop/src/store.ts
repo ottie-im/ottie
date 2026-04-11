@@ -13,6 +13,12 @@ interface AppState {
   connectionStatus: 'connected' | 'reconnecting' | 'disconnected'
   setConnectionStatus: (status: 'connected' | 'reconnecting' | 'disconnected') => void
 
+  // Agent
+  agentStatus: 'online' | 'degraded' | 'offline'
+  setAgentStatus: (status: 'online' | 'degraded' | 'offline') => void
+  setupComplete: boolean
+  setSetupComplete: (v: boolean) => void
+
   // Global error (toast-style, auto-dismiss)
   globalError: string | null
   setGlobalError: (error: string | null) => void
@@ -85,7 +91,7 @@ interface AppState {
 
 export interface ChatMessage {
   id: string
-  type: 'outgoing' | 'incoming' | 'intent'
+  type: 'agent-output' | 'incoming' | 'user-intent'
   body: string
   time: string
   senderId?: string
@@ -137,6 +143,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   connectionStatus: 'disconnected' as const,
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
+
+  agentStatus: (localStorage.getItem('ottie_agent_config') ? 'degraded' : 'offline') as 'online' | 'degraded' | 'offline',
+  setAgentStatus: (agentStatus) => set({ agentStatus }),
+  setupComplete: localStorage.getItem('ottie_setup_complete') === 'true',
+  setSetupComplete: (setupComplete) => { localStorage.setItem('ottie_setup_complete', String(setupComplete)); set({ setupComplete }) },
 
   globalError: null,
   setGlobalError: (globalError) => set({ globalError }),

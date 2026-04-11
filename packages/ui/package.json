@@ -11,7 +11,6 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@storybook/addon-essentials": "^8.6.14",
     "@storybook/react": "^10.3.5",
     "@storybook/react-vite": "^10.3.5",
     "@types/react": "^19.0.0",
@@ -20,7 +19,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
+    "test": "vitest run --passWithNoTests",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   }

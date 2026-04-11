@@ -4,3 +4,12 @@ dist/
 *.db
 .env
 .env.local
+.DS_Store
+
+# Tauri build artifacts
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/schemas/
+
+# Debug logs
+*.log
+debug-*.log

@@ -34,10 +34,8 @@ export async function startLiveActivity(state: OttieLiveActivityState): Promise<
     // return await startActivity('OttieLiveActivity', state)
 
     // Placeholder — 等 expo-widgets 安装后替换
-    console.log('[LiveActivity] Start:', state.type, state.title)
     return `activity_${Date.now()}`
-  } catch (err) {
-    console.warn('[LiveActivity] Not available:', err)
+  } catch {
     return null
   }
 }
@@ -49,7 +47,6 @@ export async function updateLiveActivity(activityId: string, state: OttieLiveAct
   try {
     // const { updateActivity } = require('expo-widgets')
     // await updateActivity(activityId, state)
-    console.log('[LiveActivity] Update:', activityId, state.title)
   } catch {}
 }
 
@@ -60,7 +57,6 @@ export async function endLiveActivity(activityId: string): Promise<void> {
   try {
     // const { endActivity } = require('expo-widgets')
     // await endActivity(activityId)
-    console.log('[LiveActivity] End:', activityId)
   } catch {}
 }
 

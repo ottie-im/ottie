@@ -24,6 +24,7 @@
         "backgroundColor": "#25D366"
       }
     },
+    "platforms": ["ios", "android"],
     "plugins": [
       "expo-font"
     ]

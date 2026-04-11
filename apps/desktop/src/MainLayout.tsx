@@ -75,12 +75,22 @@ export function MainLayout() {
   }, [messages, pendingApproval, pendingDecision])
 
   // Load conversations — show cache first, then refresh from server
+  // 虚拟联系人：我的电脑（直接跟 OpenClaw 对话）
+  const DEVICE_ROOM_ID = '__ottie_device__'
+  const deviceConversation: ConversationItem = {
+    id: DEVICE_ROOM_ID,
+    name: '🖥️ 我的电脑',
+    lastMessage: 'OpenClaw 设备助手',
+    time: '',
+    online: true,
+  }
+
   const refreshConversations = useCallback(() => {
     const convs = roomsToConversations()
-    if (convs.length > 0) {
-      setConversations(convs)
-      cacheConversations(convs)
-    }
+    // 在列表头部插入虚拟设备联系人
+    const withDevice = [deviceConversation, ...convs]
+    setConversations(withDevice)
+    if (convs.length > 0) cacheConversations(convs)
   }, [setConversations])
 
   useEffect(() => {
@@ -142,14 +152,17 @@ export function MainLayout() {
   // Listen for incoming messages → delegate to Agent for intent detection
   useEffect(() => {
     const unsub = onMessage(async (msg) => {
-      if (msg.roomId === activeConversationId && msg.content.type === 'text') {
-        addMessage({
-          id: msg.id, type: 'incoming', body: msg.content.body,
-          time: formatTime(msg.timestamp), senderId: msg.senderId,
-        })
-        sendReadReceipt(msg.roomId, msg.id).catch(() => {})
+      if (msg.content.type === 'text') {
+        // 如果是当前对话，显示消息
+        if (msg.roomId === activeConversationId) {
+          addMessage({
+            id: msg.id, type: 'incoming', body: msg.content.body,
+            time: formatTime(msg.timestamp), senderId: msg.senderId,
+          })
+          sendReadReceipt(msg.roomId, msg.id).catch(() => {})
+        }
 
-        // Delegate to Agent (not IM layer!) for intent detection
+        // 所有房间的消息都交给 Agent 做意图识别（不限于当前对话）
         try {
           const a = getAgent()
           const senderName = conversations.find(c => c.id === msg.roomId)?.name ?? msg.senderId
@@ -191,6 +204,20 @@ export function MainLayout() {
   useEffect(() => {
     if (!activeConversationId) return
 
+    // 虚拟设备房间：不从 Matrix 加载消息
+    if (activeConversationId === DEVICE_ROOM_ID) {
+      const cached = loadCachedMessages(activeConversationId)
+      if (cached.length > 0) setMessages(cached)
+      else setMessages([{
+        id: 'device_welcome',
+        type: 'incoming' as const,
+        body: '你好！我是你的设备助手。你可以让我打开浏览器、搜索信息、执行命令等。试试说"打开浏览器搜索今天的天气"',
+        time: formatTime(),
+        senderId: 'device',
+      }])
+      return
+    }
+
     // Immediately show cached messages
     const cached = loadCachedMessages(activeConversationId)
     if (cached.length > 0) setMessages(cached)
@@ -206,7 +233,7 @@ export function MainLayout() {
             : undefined
           return {
             id: m.id,
-            type: isOutgoing ? 'outgoing' : 'incoming',
+            type: isOutgoing ? 'agent-output' : 'incoming',
             body: content.type === 'text' ? content.body : (content.filename ?? ''),
             time: formatTime(m.timestamp),
             senderId: m.senderId,
@@ -268,11 +295,82 @@ export function MainLayout() {
 
   const handleSend = async (text: string) => {
     if (!activeConversationId) return
+
+    addMessage({ id: `intent_${Date.now()}`, type: 'user-intent', body: text, time: formatTime() })
+
+    // 🖥️ 设备对话：直接走 OpenClaw，不走改写/审批
+    if (activeConversationId === DEVICE_ROOM_ID) {
+      setIsLLMProcessing(true)
+
+      // 状态消息 ID（用来更新进度）
+      const statusId = `status_${Date.now()}`
+      addMessage({
+        id: statusId,
+        type: 'agent-output',
+        body: '⏳ 正在连接设备 Agent...',
+        time: formatTime(),
+      })
+
+      // 监听 OpenClaw 实时状态事件（Tauri 环境）
+      let unlisten: (() => void) | null = null
+      try {
+        const { listen } = await import('@tauri-apps/api/event')
+        unlisten = await listen<string>('openclaw-status', (event) => {
+          const store = useAppStore.getState()
+          store.setMessages(store.messages.map(m =>
+            m.id === statusId ? { ...m, body: event.payload } : m
+          ))
+        })
+      } catch {}
+
+      try {
+        const invoke = (window as any).__TAURI_INTERNALS__?.invoke
+        let result: string
+
+        if (invoke) {
+          try {
+            result = await invoke('openclaw_agent', { agentId: 'main', message: text })
+          } catch (ipcErr: any) {
+            result = `[Tauri IPC 错误] ${ipcErr?.message ?? ipcErr ?? '未知错误'}`
+          }
+        } else {
+          try {
+            const resp = await fetch('http://localhost:18790/v1/agent', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ agent_id: 'main', message: text }),
+            })
+            const data = await resp.json()
+            result = data.result?.payloads?.[0]?.text ?? JSON.stringify(data)
+          } catch (fetchErr: any) {
+            result = `无法连接 OpenClaw: ${fetchErr.message}`
+          }
+        }
+
+        // 停止监听
+        unlisten?.()
+
+        // 替换状态消息为最终结果
+        const msgs1 = useAppStore.getState().messages
+        useAppStore.getState().setMessages(msgs1.map(m => m.id === statusId
+          ? { ...m, body: `🖥️ ${result}`, status: 'sent' as const }
+          : m
+        ))
+      } catch (err: any) {
+        unlisten?.()
+        const msgs2 = useAppStore.getState().messages
+        useAppStore.getState().setMessages(msgs2.map(m => m.id === statusId
+          ? { ...m, body: `⚠️ ${err?.message ?? '设备 Agent 不可用'}` }
+          : m
+        ))
+      } finally {
+        setIsLLMProcessing(false)
+      }
+      return
+    }
+
+    // 普通对话：走 Agent 改写 → 审批流程
     sendTyping(activeConversationId, false).catch(() => {})
-
-    addMessage({ id: `intent_${Date.now()}`, type: 'intent', body: text, time: formatTime() })
-
-    // Delegate to Agent — Agent will call onDraft callback with the rewritten draft
     setIsLLMProcessing(true)
     try {
       const a = getAgent()
@@ -284,9 +382,7 @@ export function MainLayout() {
         type: 'text',
         content: { type: 'text', body: text },
       })
-      // onDraft callback (wired in useEffect above) will setPendingApproval + setIsLLMProcessing(false)
     } catch {
-      // Agent failed — fallback: show original text for approval
       setPendingApproval({
         requestId: `approval_${Date.now()}`,
         draft: text,
@@ -294,7 +390,6 @@ export function MainLayout() {
         targetRoom: activeConversationId,
       })
       setIsLLMProcessing(false)
-    } finally {
     }
   }
 
@@ -305,14 +400,14 @@ export function MainLayout() {
       if (isImage) {
         const msg = await uploadAndSendImage(activeConversationId, file)
         addMessage({
-          id: msg.id, type: 'outgoing', body: '', time: formatTime(),
+          id: msg.id, type: 'agent-output', body: '', time: formatTime(),
           mediaType: 'image', mediaUrl: mxcToHttp(msg.content.type === 'file' ? msg.content.url : ''),
           fileName: file.name,
         })
       } else {
         const msg = await uploadAndSendFile(activeConversationId, file)
         addMessage({
-          id: msg.id, type: 'outgoing', body: '', time: formatTime(),
+          id: msg.id, type: 'agent-output', body: '', time: formatTime(),
           mediaType: 'file', fileName: file.name, mimeType: file.type,
         })
       }
@@ -325,9 +420,17 @@ export function MainLayout() {
     if (!pendingApproval) return
     setIsSendingMessage(true)
     try {
-      const msg = await sendMessage(pendingApproval.targetRoom, pendingApproval.draft, replyingTo?.id)
+      // 附带原始意图 metadata，接收方的 Agent 可以读取
+      const ottieMeta: Record<string, unknown> = {
+        originalIntent: pendingApproval.originalIntent,
+      }
+      // 检测是否包含设备操作意图
+      if (/电脑上|设备上|文件.*发给|发.*文件给|帮我.*搜|帮我.*查|帮我.*找|帮我.*打开|截图|浏览器/.test(pendingApproval.originalIntent)) {
+        ottieMeta.intentType = 'device_request'
+      }
+      const msg = await sendMessage(pendingApproval.targetRoom, pendingApproval.draft, replyingTo?.id, ottieMeta)
       addMessage({
-        id: msg.id, type: 'outgoing', body: pendingApproval.draft,
+        id: msg.id, type: 'agent-output', body: pendingApproval.draft,
         time: formatTime(), status: 'sent',
         replyTo: replyingTo ? { sender: replyingTo.sender, body: replyingTo.body } : undefined,
       })
@@ -345,6 +448,20 @@ export function MainLayout() {
   // Receiving-side: user picks an action from the decision card → delegate to Agent
   const handleDecisionAction = async (action: SuggestedAction) => {
     if (!pendingDecision) return
+
+    // 设备操作请求 → adapter 接管（多步审批），不在这里创建 approval
+    if (action.response.startsWith('__device_exec__:')) {
+      try {
+        const a = getAgent()
+        if (a.onDecisionAction) {
+          await a.onDecisionAction(pendingDecision.originalMessage, action)
+        }
+      } catch {}
+      setPendingDecision(null)
+      // adapter 会通过 onDraft callback 推出审批卡片
+      return
+    }
+
     let reply = action.response
     try {
       const a = getAgent()

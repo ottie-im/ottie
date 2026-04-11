@@ -165,11 +165,11 @@ npm install -g openclaw      # Phase 2 才需要
 ```
 
 ### ✅ Phase -1 验收点
-- [ ] ottie-im 组织创建好了
-- [ ] 3 个仓库创建好了
-- [ ] 文件推上去了
-- [ ] 域名买了
-- [ ] Docker + Node.js + Turbo 装好了
+- [x] ottie-im 组织创建好了
+- [x] 3 个仓库创建好了
+- [x] 文件推上去了
+- [x] 域名买了（ottie.claws.company 临时）
+- [x] Docker + Node.js + Turbo 装好了
 
 ---
 
@@ -194,9 +194,9 @@ curl http://localhost:8008/_matrix/client/versions
 ```
 
 ### ✅ 验收点
-- [ ] Tuwunel 跑着
-- [ ] 两个用户能互发消息
-- [ ] 重启后数据不丢
+- [x] Tuwunel 跑着（公网 production 模式 + Caddy TLS）
+- [x] 两个用户能互发消息（alice ↔ bob 端到端验证通过）
+- [x] 重启后数据不丢（Docker volume 持久化验证通过）
 
 ---
 
@@ -236,7 +236,7 @@ cd packages/matrix && npm test && npx tsc --noEmit
 ```
 
 ### ✅ 验收点
-- [ ] 连接 Tuwunel + 登录 + 互发消息 + 好友全流程
+- [x] 连接 Tuwunel + 登录 + 互发消息 + 好友全流程（公网验证通过）
 
 ---
 
@@ -277,7 +277,7 @@ claude
 ```
 
 ### ✅ 验收点
-- [ ] 改写 + 审批跑通 + 适配器模式验证 = 核心原型完成
+- [x] 改写 + 审批跑通 + 适配器模式验证 = 核心原型完成（OpenClaw gateway + MockAdapter 36 tests）
 
 ---
 
@@ -310,7 +310,7 @@ claude
 设置里加入口，UI 先到位，第三方接入 Phase 5 做。
 
 ### ✅ 验收点
-- [ ] 登录 + 聊天 + 好友 + 设备面板 = 可以演示
+- [x] 登录 + 聊天 + 好友 + 设备面板 = 可以演示（Tauri .dmg 5.8MB 打包并验证通过）
 
 ---
 
@@ -341,15 +341,18 @@ claude
 ```
 
 ### ✅ 验收点
-- [ ] 屏幕感知 + 推送 + 审批 + 记忆端到端跑通
+- [x] OpenClaw 设备 Agent 接入，exec/web_search 真正执行并返回结果
+- [x] Tauri sidecar 自动 spawn/kill OpenClaw gateway + Screenpipe
+- [ ] Screenpipe 屏幕感知推送到手机端（待 Screenpipe 内嵌）
 
 ---
 
 ## Phase 5：生态（持续）
 
-- 主仓库：实现 packages/a2ui
-- 社区可以创建 agent-langgraph、agent-a2a 等仓库
-- 商户托管平台
+- [x] packages/a2ui — A2UI renderer + catalog 已完成（含 text-field）
+- [x] ottie-agent/packages/a2a — A2A adapter 已完成
+- [ ] 社区可以创建 agent-langgraph 等仓库
+- [ ] 商户托管平台
 
 ---
 
