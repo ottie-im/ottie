@@ -87,6 +87,17 @@ interface AppState {
   searchResults: ChatMessage[]
   setSearchQuery: (query: string) => void
   setSearchResults: (results: ChatMessage[]) => void
+
+  // Workspace tabs
+  tabs: WorkspaceTab[]
+  activeTabId: string
+  addTab: (tab: Omit<WorkspaceTab, 'id'>) => void
+  closeTab: (id: string) => void
+  setActiveTab: (id: string) => void
+
+  // Command palette
+  commandPaletteOpen: boolean
+  setCommandPaletteOpen: (open: boolean) => void
 }
 
 export interface ChatMessage {
@@ -122,6 +133,12 @@ export interface PendingDecision {
   intentType: string
   intentSummary: string
   suggestedActions: { label: string; response: string }[]
+}
+
+export interface WorkspaceTab {
+  id: string
+  type: 'chat' | 'terminal' | 'files' | 'agent'
+  title: string
 }
 
 export interface PendingApproval {
@@ -214,4 +231,28 @@ export const useAppStore = create<AppState>((set) => ({
   searchResults: [],
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchResults: (searchResults) => set({ searchResults }),
+
+  // Workspace tabs
+  tabs: [{ id: 'chat-main', type: 'chat' as const, title: '聊天' }],
+  activeTabId: 'chat-main',
+  addTab: (tab) => {
+    const id = `${tab.type}_${Date.now()}`
+    set((s) => ({
+      tabs: [...s.tabs, { ...tab, id }],
+      activeTabId: id,
+    }))
+  },
+  closeTab: (id) => set((s) => {
+    const remaining = s.tabs.filter(t => t.id !== id)
+    if (remaining.length === 0) return s // 不能关掉最后一个
+    return {
+      tabs: remaining,
+      activeTabId: s.activeTabId === id ? remaining[remaining.length - 1].id : s.activeTabId,
+    }
+  }),
+  setActiveTab: (activeTabId) => set({ activeTabId }),
+
+  // Command palette
+  commandPaletteOpen: false,
+  setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
 }))

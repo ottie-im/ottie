@@ -4,6 +4,7 @@ import { OttieLogin, OttieToast, OttieConnectionBar } from '@ottie-im/ui'
 import { MainLayout } from './MainLayout'
 import { SettingsView } from './SettingsView'
 import { SetupGuide } from './SetupGuide'
+import { CommandPalette } from './components/CommandPalette'
 import { login, register, startSync, setPresence, tryAutoLogin, initAgent } from './services'
 
 export function App() {
@@ -106,11 +107,28 @@ export function App() {
     )
   }
 
+  // Cmd+K 全局快捷键
+  const { commandPaletteOpen, setCommandPaletteOpen } = useAppStore()
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandPaletteOpen(!commandPaletteOpen)
+      }
+      if (e.key === 'Escape' && commandPaletteOpen) {
+        setCommandPaletteOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [commandPaletteOpen, setCommandPaletteOpen])
+
   // Phase C+D: Login or Main app
   return (
     <>
       {loggedIn && <OttieConnectionBar status={connectionStatus} />}
       {globalError && <OttieToast message={globalError} type="error" onDismiss={() => setGlobalError(null)} />}
+      {loggedIn && <CommandPalette />}
       {!loggedIn ? (
         <OttieLogin onLogin={handleLogin} onRegister={handleRegister} loading={loading} error={error} />
       ) : currentView === 'settings' ? (

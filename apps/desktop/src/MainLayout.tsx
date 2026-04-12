@@ -8,6 +8,8 @@ import {
 } from '@ottie-im/ui'
 import type { ConversationItem } from '@ottie-im/ui'
 import type { SuggestedAction, DecisionRequest } from '@ottie-im/contracts'
+import { TabBar } from './components/TabBar'
+import { TerminalView } from './components/TerminalView'
 import {
   sendMessage, getMessages, onMessage, getRooms, getFriends,
   getSession, getAgent, searchUsers, sendFriendRequest,
@@ -63,6 +65,7 @@ export function MainLayout() {
     setGlobalError,
     screenNotifications, addScreenNotification, removeScreenNotification,
     replyingTo, setReplyingTo,
+    tabs, activeTabId,
   } = useAppStore()
 
   const [userSearchResults, setUserSearchResults] = useState<any[]>([])
@@ -558,7 +561,17 @@ export function MainLayout() {
 
       {/* Chat Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {activeConv ? (
+        <TabBar />
+
+        {/* Terminal tab content */}
+        {tabs.find(t => t.id === activeTabId)?.type === 'terminal' && (
+          <div style={{ flex: 1 }}>
+            <TerminalView />
+          </div>
+        )}
+
+        {/* Chat tab content (default) */}
+        {(tabs.find(t => t.id === activeTabId)?.type ?? 'chat') === 'chat' && activeConv ? (
           <>
             <OttieChatHeader
               name={activeConv.name}
