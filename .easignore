@@ -1,0 +1,24 @@
+# Tauri build artifacts (huge)
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen/schemas
+
+# Node modules (EAS reinstalls from lock file)
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+
+# Build outputs
+dist
+.turbo
+*.tsbuildinfo
+
+# Dev files
+.expo
+*.log
+.DS_Store
+
+# Git
+.git
+
+# References
+references
