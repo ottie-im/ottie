@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Alert } from 'react-native'
 import { router } from 'expo-router'
+import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useStore } from '../src/store'
-import { login, register, restoreSession, getUserId } from '../src/services'
+import { login, register, restoreSession, getUserId, parseQRCode } from '../src/services'
 
 export default function LoginScreen() {
   const { setLoggedIn } = useStore()
@@ -12,6 +13,8 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [restoring, setRestoring] = useState(true)
   const [error, setError] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [permission, requestPermission] = useCameraPermissions()
 
   // 尝试恢复上次 session
   useEffect(() => {
@@ -42,6 +45,38 @@ export default function LoginScreen() {
       setError(err.data?.error ?? err.message ?? '登录失败')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleScan = async () => {
+    if (!permission?.granted) {
+      const result = await requestPermission()
+      if (!result.granted) {
+        Alert.alert('需要相机权限', '请在设置中允许 Ottie 使用相机来扫描二维码')
+        return
+      }
+    }
+    setScanning(true)
+  }
+
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    setScanning(false)
+    const qrData = parseQRCode(data)
+    if (qrData) {
+      // 从 QR 码填充服务器信息
+      // QR 只告诉你服务器地址和用户名，密码还是要自己输
+      if (qrData.userId) {
+        // 提取用户名（去掉 @xxx:server 的格式）
+        const name = qrData.userId.replace(/^@/, '').split(':')[0]
+        setUsername(name)
+      }
+      Alert.alert(
+        '扫码成功',
+        `服务器：${qrData.serverUrl}\n请输入密码登录`,
+        [{ text: '好的' }]
+      )
+    } else {
+      Alert.alert('无法识别', '这不是 Ottie 的登录二维码')
     }
   }
 
@@ -92,11 +127,32 @@ export default function LoginScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* 扫码登录提示 */}
-        <View style={s.qrHint}>
-          <Text style={s.qrHintText}>在电脑上打开 Ottie → 设置 → 扫码连接</Text>
+        {/* 扫码登录 */}
+        <View style={s.qrSection}>
+          <TouchableOpacity style={s.scanButton} onPress={handleScan}>
+            <Text style={s.scanIcon}>📷</Text>
+            <Text style={s.scanText}>扫码登录</Text>
+          </TouchableOpacity>
+          <Text style={s.qrHintText}>在电脑上打开 Ottie → 设置 → 扫描二维码</Text>
         </View>
       </View>
+
+      {/* 扫码 Modal */}
+      <Modal visible={scanning} animationType="slide" presentationStyle="fullScreen">
+        <View style={s.scannerContainer}>
+          <CameraView
+            style={s.scanner}
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={handleBarCodeScanned}
+          />
+          <View style={s.scannerOverlay}>
+            <View style={s.scannerFrame} />
+          </View>
+          <TouchableOpacity style={s.closeButton} onPress={() => setScanning(false)}>
+            <Text style={s.closeText}>取消</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -114,6 +170,16 @@ const s = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '500' },
   switchText: { textAlign: 'center', fontSize: 14, color: '#667781' },
   switchLink: { color: '#25D366' },
-  qrHint: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#e9edef', alignItems: 'center' },
+  qrSection: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#e9edef', alignItems: 'center' },
+  scanButton: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingHorizontal: 24, backgroundColor: '#f0f2f5', borderRadius: 8, marginBottom: 8 },
+  scanIcon: { fontSize: 20 },
+  scanText: { fontSize: 15, fontWeight: '500', color: '#111b21' },
   qrHintText: { fontSize: 12, color: '#8696a0', textAlign: 'center' },
+  // Scanner
+  scannerContainer: { flex: 1, backgroundColor: '#000' },
+  scanner: { flex: 1 },
+  scannerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  scannerFrame: { width: 250, height: 250, borderWidth: 2, borderColor: '#25D366', borderRadius: 12 },
+  closeButton: { position: 'absolute', bottom: 60, alignSelf: 'center', padding: 16, paddingHorizontal: 32, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8 },
+  closeText: { color: '#fff', fontSize: 16, fontWeight: '500' },
 })

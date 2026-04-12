@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { useAppStore } from './store'
 import { OttieAvatar, OttieAgentSelector, OttieDevicePanel } from '@ottie-im/ui'
 import type { AgentInfo, DeviceInfo } from '@ottie-im/ui'
@@ -355,25 +356,23 @@ export function SettingsView() {
             {qrData && (
               <div style={{ textAlign: 'center', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
                 <div style={{
-                  display: 'inline-block', padding: '12px', background: '#fff', borderRadius: '8px',
+                  display: 'inline-block', padding: '16px', background: '#fff', borderRadius: '12px',
                   border: '1px solid var(--border)',
                 }}>
-                  {/* QR 码用 SVG 渲染 — 简单的文本 QR 替代 */}
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                    服务器地址
-                  </div>
-                  <div style={{
-                    fontSize: '13px', fontFamily: 'monospace', color: 'var(--text-primary)',
-                    padding: '8px', background: '#f0f2f5', borderRadius: '4px', wordBreak: 'break-all',
-                  }}>
-                    {MATRIX_URL}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                    账号：{userId}
-                  </div>
+                  <QRCodeSVG
+                    value={qrData}
+                    size={180}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#111b21"
+                    style={{ display: 'block' }}
+                  />
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '12px' }}>
-                  手机用相同的用户名和密码登录即可
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '12px' }}>
+                  打开手机 Ottie → 扫描二维码登录
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                  或手动输入：{MATRIX_URL}
                 </div>
               </div>
             )}
