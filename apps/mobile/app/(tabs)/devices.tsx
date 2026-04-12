@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, RefreshControl, Alert, ActivityIndicator } from 'react-native'
-import { isAIAvailable, aiRewrite, getAIModels, setAIConfig } from '../../src/services'
+import { isAIAvailable, getAIModels, setAIConfig } from '../../src/services'
+import { streamOllamaChat } from '../../src/streaming'
 
 // ============================================================
 // Agent 类型
@@ -49,15 +50,19 @@ export default function DevicesTab() {
     setRefreshing(false)
   }
 
-  // 执行 Agent 任务
+  // 当前运行的 abort controller
+  const [abortController, setAbortController] = useState<AbortController | null>(null)
+
+  // 执行 Agent 任务（流式输出）
   const handleRun = async () => {
     if (!prompt.trim() || running) return
     const taskPrompt = prompt.trim()
     setPrompt('')
     setRunning(true)
 
+    const taskId = `task_${Date.now()}`
     const task: AgentTask = {
-      id: `task_${Date.now()}`,
+      id: taskId,
       prompt: taskPrompt,
       status: 'running',
       output: '',
@@ -66,30 +71,48 @@ export default function DevicesTab() {
     }
     setTasks(prev => [task, ...prev])
 
-    try {
-      setAIConfig({ model: selectedModel })
-      const result = await aiRewrite(taskPrompt)
-      setTasks(prev => prev.map(t =>
-        t.id === task.id
-          ? { ...t, status: 'completed', output: result ?? '无输出' }
-          : t
-      ))
-    } catch (err: any) {
-      setTasks(prev => prev.map(t =>
-        t.id === task.id
-          ? { ...t, status: 'error', output: err.message ?? '执行失败' }
-          : t
-      ))
-    } finally {
-      setRunning(false)
-    }
+    const controller = new AbortController()
+    setAbortController(controller)
+
+    const AI_URL = 'http://localhost:11434' // TODO: from config
+
+    await streamOllamaChat({
+      url: AI_URL,
+      model: selectedModel,
+      messages: [
+        { role: 'system', content: '你是一个有帮助的AI助手。简洁回答用户的问题。' },
+        { role: 'user', content: taskPrompt },
+      ],
+      signal: controller.signal,
+      onChunk: (chunk) => {
+        setTasks(prev => prev.map(t =>
+          t.id === taskId ? { ...t, output: t.output + chunk } : t
+        ))
+      },
+      onDone: (fullText) => {
+        setTasks(prev => prev.map(t =>
+          t.id === taskId ? { ...t, status: 'completed', output: fullText || '无输出' } : t
+        ))
+        setRunning(false)
+        setAbortController(null)
+      },
+      onError: (error) => {
+        setTasks(prev => prev.map(t =>
+          t.id === taskId ? { ...t, status: 'error', output: error } : t
+        ))
+        setRunning(false)
+        setAbortController(null)
+      },
+    })
   }
 
-  // 取消任务（目前只是标记为 error）
+  // 取消任务
   const handleCancel = (taskId: string) => {
+    abortController?.abort()
+    setAbortController(null)
     setTasks(prev => prev.map(t =>
       t.id === taskId && t.status === 'running'
-        ? { ...t, status: 'error', output: '已取消' }
+        ? { ...t, status: 'error', output: t.output ? t.output + '\n\n[已取消]' : '已取消' }
         : t
     ))
     setRunning(false)
@@ -122,9 +145,15 @@ export default function DevicesTab() {
       </View>
       <Text style={s.taskPrompt} numberOfLines={2}>📝 {item.prompt}</Text>
       {item.status === 'running' ? (
-        <View style={s.runningRow}>
-          <ActivityIndicator size="small" color="#25D366" />
-          <Text style={s.runningText}>执行中...</Text>
+        <View style={s.outputBox}>
+          {item.output ? (
+            <Text style={s.outputText} selectable>{item.output}{'▌'}</Text>
+          ) : (
+            <View style={s.runningRow}>
+              <ActivityIndicator size="small" color="#25D366" />
+              <Text style={s.runningText}>思考中...</Text>
+            </View>
+          )}
         </View>
       ) : (
         <View style={[s.outputBox, item.status === 'error' && s.outputError]}>

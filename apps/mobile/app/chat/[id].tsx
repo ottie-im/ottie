@@ -2,7 +2,9 @@ import React, { useEffect, useState, useRef } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { useLocalSearchParams, Stack } from 'expo-router'
 import { useStore } from '../../src/store'
-import { sendMessage, getRoomMessages, getUserId, sendReadReceipt, onMessage } from '../../src/services'
+import { sendMessage, getRoomMessages, getUserId, sendReadReceipt, onMessage, aiRewrite, aiDetectIntent, isAIAvailable } from '../../src/services'
+import { ApprovalCard } from '../../src/components/ApprovalCard'
+import { DecisionCard } from '../../src/components/DecisionCard'
 
 interface ChatMsg {
   id: string
@@ -56,16 +58,107 @@ export default function ChatScreen() {
     return unsub
   }, [roomId, userId])
 
+  // 审批/决策状态
+  const { pendingApproval, setPendingApproval, pendingDecision, setPendingDecision } = useStore()
+  const [aiEnabled, setAiEnabled] = useState(false)
+
+  useEffect(() => {
+    isAIAvailable().then(setAiEnabled).catch(() => setAiEnabled(false))
+  }, [])
+
+  // 收到消息时做意图识别
+  useEffect(() => {
+    if (!aiEnabled) return
+    const unsub = onMessage(async (msg: any) => {
+      if (msg.roomId === roomId && msg.senderId !== userId) {
+        try {
+          const intent = await aiDetectIntent(msg.content?.body ?? '')
+          if (intent && intent.suggestedActions?.length > 0) {
+            setPendingDecision({
+              messageId: msg.id,
+              roomId,
+              senderName: msg.senderId?.replace(/@(.+):.*/, '$1') ?? '',
+              originalMessage: msg.content?.body ?? '',
+              intentType: intent.type,
+              intentSummary: intent.summary,
+              suggestedActions: intent.suggestedActions,
+            })
+          }
+        } catch {}
+      }
+    })
+    return unsub
+  }, [roomId, userId, aiEnabled, setPendingDecision])
+
   const handleSend = async () => {
     const trimmed = text.trim()
     if (!trimmed || !roomId) return
     setText('')
     const replyId = replyingTo?.id
     setReplyingTo(null)
+
+    // 如果 AI 可用，先走改写→审批流程
+    if (aiEnabled) {
+      try {
+        const rewritten = await aiRewrite(trimmed)
+        if (rewritten && rewritten !== trimmed) {
+          setPendingApproval({
+            requestId: `approval_${Date.now()}`,
+            draft: rewritten,
+            originalIntent: trimmed,
+            targetRoomId: roomId,
+          })
+          return // 等审批
+        }
+      } catch {} // AI 失败则直接发送
+    }
+
+    // 直接发送（无 AI 或 AI 失败）
     try {
       const msg = await sendMessage(roomId, trimmed, replyId)
       setMessages(prev => [...prev, {
-        id: msg.id, type: 'agent-output', body: trimmed, status: 'sent',
+        id: msg.event_id ?? msg.id, type: 'agent-output', body: trimmed, status: 'sent',
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      }])
+    } catch {}
+  }
+
+  // 审批通过 → 发送
+  const handleApprove = async (finalText: string) => {
+    if (!pendingApproval) return
+    setPendingApproval(null)
+    try {
+      const msg = await sendMessage(pendingApproval.targetRoomId, finalText)
+      setMessages(prev => [...prev, {
+        id: msg.event_id ?? msg.id, type: 'agent-output', body: finalText, status: 'sent',
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      }])
+    } catch {}
+  }
+
+  // 审批拒绝
+  const handleReject = () => {
+    setPendingApproval(null)
+  }
+
+  // 决策选择 → 发送回复
+  const handleSelectAction = async (action: { label: string; response: string }) => {
+    setPendingDecision(null)
+    try {
+      const msg = await sendMessage(roomId, action.response)
+      setMessages(prev => [...prev, {
+        id: msg.event_id ?? msg.id, type: 'agent-output', body: action.response, status: 'sent',
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      }])
+    } catch {}
+  }
+
+  const handleCustomReply = async (replyText: string) => {
+    setPendingDecision(null)
+    try {
+      const msg = await sendMessage(roomId, replyText)
+      setMessages(prev => [...prev, {
+        id: msg.event_id ?? msg.id, type: 'agent-output', body: replyText, status: 'sent',
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       }])
     } catch {}
@@ -113,6 +206,29 @@ export default function ChatScreen() {
             </View>
           }
         />
+
+        {/* 决策卡片（收到消息的建议回复） */}
+        {pendingDecision && pendingDecision.roomId === roomId && (
+          <DecisionCard
+            senderName={pendingDecision.senderName}
+            originalMessage={pendingDecision.originalMessage}
+            intentSummary={pendingDecision.intentSummary}
+            suggestedActions={pendingDecision.suggestedActions}
+            onSelectAction={handleSelectAction}
+            onCustomReply={handleCustomReply}
+            onDismiss={() => setPendingDecision(null)}
+          />
+        )}
+
+        {/* 审批卡片（发送前的改写审批） */}
+        {pendingApproval && pendingApproval.targetRoomId === roomId && (
+          <ApprovalCard
+            draft={pendingApproval.draft}
+            originalIntent={pendingApproval.originalIntent}
+            onApprove={handleApprove}
+            onReject={handleReject}
+          />
+        )}
 
         {replyingTo && (
           <View style={s.replyBar}>
