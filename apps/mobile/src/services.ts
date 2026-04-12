@@ -6,8 +6,15 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as Notifications from 'expo-notifications'
 import { AppState } from 'react-native'
+
+// expo-notifications 需要 native module，动态导入以支持 Expo Go
+let Notifications: any = null
+try {
+  Notifications = require('expo-notifications')
+} catch {
+  // expo-notifications native module not available (Expo Go / dev build)
+}
 
 const MATRIX_URL = process.env.EXPO_PUBLIC_MATRIX_URL ?? 'https://ottie.claws.company'
 const REG_TOKEN = process.env.EXPO_PUBLIC_REG_TOKEN ?? 'ottie-dev-token'
@@ -159,6 +166,7 @@ export function parseQRCode(data: string): QRLoginData | null {
 
 // 设置通知处理器（app 启动时调用）
 export function setupNotifications() {
+  if (!Notifications) return
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -170,26 +178,34 @@ export function setupNotifications() {
 
 // 请求通知权限
 export async function requestNotificationPermission(): Promise<boolean> {
-  const { status: existing } = await Notifications.getPermissionsAsync()
-  if (existing === 'granted') return true
-  const { status } = await Notifications.requestPermissionsAsync()
-  return status === 'granted'
+  if (!Notifications) return false
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync()
+    if (existing === 'granted') return true
+    const { status } = await Notifications.requestPermissionsAsync()
+    return status === 'granted'
+  } catch {
+    return false
+  }
 }
 
 // 发送本地通知（新消息到达时）
 async function showMessageNotification(senderName: string, body: string, roomId: string) {
+  if (!Notifications) return
   // 只在 app 不在前台时显示通知
   if (AppState.currentState === 'active') return
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: senderName,
-      body: body.length > 100 ? body.slice(0, 100) + '...' : body,
-      data: { roomId },
-      sound: 'default',
-    },
-    trigger: null, // 立即显示
-  })
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: senderName,
+        body: body.length > 100 ? body.slice(0, 100) + '...' : body,
+        data: { roomId },
+        sound: 'default',
+      },
+      trigger: null, // 立即显示
+    })
+  } catch {}
 }
 
 // 获取发送者名称（缓存）

@@ -52,9 +52,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="devices"
         options={{
-          title: '设备',
-          headerTitle: '设备',
-          tabBarIcon: () => <Text style={{ fontSize: 20 }}>🖥️</Text>,
+          title: 'Agent',
+          headerTitle: 'AI Agent',
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>🤖</Text>,
         }}
       />
       <Tabs.Screen
