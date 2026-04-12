@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Alert } from 'react-native'
 import { router } from 'expo-router'
-import { CameraView, useCameraPermissions } from 'expo-camera'
+import { Camera, CameraView, useCameraPermissions } from 'expo-camera'
 import { useStore } from '../src/store'
 import { login, register, restoreSession, getUserId, parseQRCode } from '../src/services'
 
