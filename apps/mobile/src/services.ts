@@ -479,6 +479,46 @@ export async function sendReadReceipt(roomId: string, eventId: string): Promise<
 }
 
 // ============================================================
+// File / Image upload
+// ============================================================
+
+export async function uploadImage(roomId: string, imageUri: string, fileName = 'image.jpg'): Promise<any> {
+  if (!accessToken) throw new Error('Not logged in')
+
+  // 1. Upload to Matrix media
+  const resp = await fetch(imageUri)
+  const blob = await resp.blob()
+
+  const uploadResp = await fetch(`${MATRIX_URL}/_matrix/media/v3/upload?filename=${encodeURIComponent(fileName)}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': blob.type || 'image/jpeg',
+    },
+    body: blob,
+  })
+  const uploadData = await uploadResp.json()
+  const mxcUrl = uploadData.content_uri
+
+  if (!mxcUrl) throw new Error('Upload failed')
+
+  // 2. Send m.image event
+  const txnId = `m${Date.now()}`
+  return api('PUT', `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/send/m.room.message/${txnId}`, {
+    msgtype: 'm.image',
+    body: fileName,
+    url: mxcUrl,
+    info: { mimetype: blob.type || 'image/jpeg' },
+  })
+}
+
+export function mxcToHttp(mxcUrl: string): string {
+  if (!mxcUrl?.startsWith('mxc://')) return mxcUrl
+  const parts = mxcUrl.replace('mxc://', '').split('/')
+  return `${MATRIX_URL}/_matrix/media/v3/download/${parts[0]}/${parts[1]}`
+}
+
+// ============================================================
 // Room members
 // ============================================================
 

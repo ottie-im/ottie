@@ -2,9 +2,14 @@ import React, { useEffect, useState, useRef } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { useLocalSearchParams, Stack } from 'expo-router'
 import { useStore } from '../../src/store'
-import { sendMessage, getRoomMessages, getUserId, sendReadReceipt, onMessage, aiRewrite, aiDetectIntent, isAIAvailable } from '../../src/services'
+import { sendMessage, getRoomMessages, getUserId, sendReadReceipt, onMessage, aiRewrite, aiDetectIntent, isAIAvailable, uploadImage, mxcToHttp } from '../../src/services'
 import { ApprovalCard } from '../../src/components/ApprovalCard'
 import { DecisionCard } from '../../src/components/DecisionCard'
+import { VoiceButton } from '../../src/components/VoiceButton'
+import { ImageBubble } from '../../src/components/ImageBubble'
+import { speakText } from '../../src/tts'
+let ImagePicker: any = null
+try { ImagePicker = require('expo-image-picker') } catch {}
 
 interface ChatMsg {
   id: string
@@ -164,23 +169,64 @@ export default function ChatScreen() {
     } catch {}
   }
 
-  const renderBubble = ({ item }: { item: ChatMsg }) => (
-    <TouchableOpacity
-      style={[s.bubble, item.type === 'agent-output' ? s.outgoing : s.incoming]}
-      onLongPress={() => setReplyingTo(item)}
-      activeOpacity={0.7}
-    >
-      <Text style={s.bubbleText}>{item.body}</Text>
-      <View style={s.bubbleFooter}>
-        <Text style={s.bubbleTime}>{item.time}</Text>
-        {item.type === 'agent-output' && (
-          <Text style={[s.checkmark, item.status === 'read' && s.checkmarkRead]}>
-            {item.status === 'read' ? '✓✓' : '✓'}
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  )
+  // 图片选择
+  const handlePickImage = async () => {
+    if (!ImagePicker) return
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets[0]) {
+      try {
+        const asset = result.assets[0]
+        await uploadImage(roomId, asset.uri, asset.fileName ?? 'photo.jpg')
+        setMessages(prev => [...prev, {
+          id: `img_${Date.now()}`, type: 'agent-output', body: '📷 图片',
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          status: 'sent', mediaType: 'image' as const, mediaUrl: asset.uri,
+        }])
+      } catch {}
+    }
+  }
+
+  const renderBubble = ({ item }: { item: ChatMsg }) => {
+    // 图片消息
+    if ((item as any).mediaType === 'image' && (item as any).mediaUrl) {
+      return (
+        <ImageBubble
+          uri={(item as any).mediaUrl}
+          isOutgoing={item.type === 'agent-output'}
+          time={item.time}
+        />
+      )
+    }
+
+    return (
+      <TouchableOpacity
+        style={[s.bubble, item.type === 'agent-output' ? s.outgoing : s.incoming]}
+        onLongPress={() => setReplyingTo(item)}
+        onPress={() => {
+          // 双击朗读（简化为单击，因为 RN 没有原生双击）
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={s.bubbleText}>{item.body}</Text>
+        <View style={s.bubbleFooter}>
+          <Text style={s.bubbleTime}>{item.time}</Text>
+          {item.type === 'incoming' && (
+            <TouchableOpacity onPress={() => speakText(item.body)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={s.speakBtn}>🔊</Text>
+            </TouchableOpacity>
+          )}
+          {item.type === 'agent-output' && (
+            <Text style={[s.checkmark, item.status === 'read' && s.checkmarkRead]}>
+              {item.status === 'read' ? '✓✓' : '✓'}
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    )
+  }
 
   return (
     <>
@@ -243,6 +289,9 @@ export default function ChatScreen() {
         )}
 
         <View style={s.inputContainer}>
+          <TouchableOpacity style={s.attachBtn} onPress={handlePickImage}>
+            <Text style={s.attachIcon}>📎</Text>
+          </TouchableOpacity>
           <TextInput
             style={s.input}
             value={text}
@@ -252,9 +301,16 @@ export default function ChatScreen() {
             returnKeyType="send"
             onSubmitEditing={handleSend}
           />
-          <TouchableOpacity style={[s.sendBtn, !text.trim() && s.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()}>
-            <Text style={s.sendIcon}>➤</Text>
-          </TouchableOpacity>
+          {text.trim() ? (
+            <TouchableOpacity style={s.sendBtn} onPress={handleSend}>
+              <Text style={s.sendIcon}>➤</Text>
+            </TouchableOpacity>
+          ) : (
+            <VoiceButton
+              onTranscript={(transcript) => setText(transcript)}
+              size={40}
+            />
+          )}
         </View>
       </KeyboardAvoidingView>
     </>
@@ -283,4 +339,7 @@ const s = StyleSheet.create({
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#25D366', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
   sendBtnDisabled: { backgroundColor: '#e9edef' },
   sendIcon: { color: '#fff', fontSize: 18 },
+  attachBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 6 },
+  attachIcon: { fontSize: 20 },
+  speakBtn: { fontSize: 12, marginLeft: 4 },
 })
