@@ -1,5 +1,27 @@
 import { Tabs } from 'expo-router'
-import { Text } from 'react-native'
+import { Text, View } from 'react-native'
+import { isSyncing } from '../../src/services'
+import { useEffect, useState } from 'react'
+
+function SyncDot() {
+  const [syncing, setSyncing] = useState(false)
+  useEffect(() => {
+    const check = () => setSyncing(isSyncing())
+    check()
+    const timer = setInterval(check, 3000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <Text style={{ fontSize: 18, color: '#fff', fontWeight: '600' }}>🦦 Ottie</Text>
+      <View style={{
+        width: 8, height: 8, borderRadius: 4,
+        backgroundColor: syncing ? '#4ade80' : '#f87171',
+      }} />
+    </View>
+  )
+}
 
 export default function TabsLayout() {
   return (
@@ -15,8 +37,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: '聊天',
-          headerTitle: '🦦 Ottie',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>💬</Text>,
+          headerTitle: () => <SyncDot />,
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>💬</Text>,
         }}
       />
       <Tabs.Screen
@@ -24,7 +46,7 @@ export default function TabsLayout() {
         options={{
           title: '联系人',
           headerTitle: '联系人',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>👤</Text>,
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>👤</Text>,
         }}
       />
       <Tabs.Screen
@@ -32,7 +54,7 @@ export default function TabsLayout() {
         options={{
           title: '设备',
           headerTitle: '设备',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🖥️</Text>,
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>🖥️</Text>,
         }}
       />
       <Tabs.Screen
@@ -40,7 +62,7 @@ export default function TabsLayout() {
         options={{
           title: '设置',
           headerTitle: '设置',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>⚙️</Text>,
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>⚙️</Text>,
         }}
       />
     </Tabs>

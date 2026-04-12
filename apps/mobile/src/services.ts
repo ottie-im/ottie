@@ -6,6 +6,8 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Notifications from 'expo-notifications'
+import { AppState } from 'react-native'
 
 const MATRIX_URL = process.env.EXPO_PUBLIC_MATRIX_URL ?? 'https://ottie.claws.company'
 const REG_TOKEN = process.env.EXPO_PUBLIC_REG_TOKEN ?? 'ottie-dev-token'
@@ -152,6 +154,59 @@ export function parseQRCode(data: string): QRLoginData | null {
 }
 
 // ============================================================
+// 推送通知
+// ============================================================
+
+// 设置通知处理器（app 启动时调用）
+export function setupNotifications() {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  })
+}
+
+// 请求通知权限
+export async function requestNotificationPermission(): Promise<boolean> {
+  const { status: existing } = await Notifications.getPermissionsAsync()
+  if (existing === 'granted') return true
+  const { status } = await Notifications.requestPermissionsAsync()
+  return status === 'granted'
+}
+
+// 发送本地通知（新消息到达时）
+async function showMessageNotification(senderName: string, body: string, roomId: string) {
+  // 只在 app 不在前台时显示通知
+  if (AppState.currentState === 'active') return
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: senderName,
+      body: body.length > 100 ? body.slice(0, 100) + '...' : body,
+      data: { roomId },
+      sound: 'default',
+    },
+    trigger: null, // 立即显示
+  })
+}
+
+// 获取发送者名称（缓存）
+const senderNameCache: Record<string, string> = {}
+async function getSenderName(senderId: string): Promise<string> {
+  if (senderNameCache[senderId]) return senderNameCache[senderId]
+  try {
+    const profile = await getProfile(senderId)
+    const name = profile.displayname || senderId.replace(/@(.+):.*/, '$1')
+    senderNameCache[senderId] = name
+    return name
+  } catch {
+    return senderId.replace(/@(.+):.*/, '$1')
+  }
+}
+
+// ============================================================
 // Sync 长轮询 — 实时消息接收
 // ============================================================
 
@@ -209,6 +264,12 @@ async function syncLoop() {
             for (const cb of messageCallbacks) {
               try { cb(msg) } catch {}
             }
+            // 推送通知（别人发的消息）
+            if (event.sender !== userId) {
+              getSenderName(event.sender).then(name => {
+                showMessageNotification(name, event.content?.body ?? '', roomId)
+              }).catch(() => {})
+            }
           }
         }
       }
@@ -236,6 +297,101 @@ export function stopSync() {
 
 export function isSyncing(): boolean {
   return syncRunning
+}
+
+export function isLoggedIn(): boolean {
+  return !!accessToken && !!userId
+}
+
+// ============================================================
+// AI — Ollama API（本地或远程 LLM）
+// ============================================================
+
+const AI_URL = process.env.EXPO_PUBLIC_AI_URL ?? 'http://localhost:11434'
+const AI_MODEL = process.env.EXPO_PUBLIC_AI_MODEL ?? 'gemma4:latest'
+
+export interface AIConfig {
+  url: string
+  model: string
+}
+
+let aiConfig: AIConfig = { url: AI_URL, model: AI_MODEL }
+
+export function setAIConfig(config: Partial<AIConfig>) {
+  if (config.url) aiConfig.url = config.url
+  if (config.model) aiConfig.model = config.model
+}
+
+export async function isAIAvailable(): Promise<boolean> {
+  try {
+    const resp = await fetch(`${aiConfig.url}/api/tags`, { signal: AbortSignal.timeout(3000) })
+    return resp.ok
+  } catch {
+    return false
+  }
+}
+
+export async function getAIModels(): Promise<string[]> {
+  try {
+    const resp = await fetch(`${aiConfig.url}/api/tags`, { signal: AbortSignal.timeout(3000) })
+    const data = await resp.json()
+    return (data.models ?? []).map((m: any) => m.name)
+  } catch {
+    return []
+  }
+}
+
+export async function aiRewrite(intent: string): Promise<string | null> {
+  try {
+    const resp = await fetch(`${aiConfig.url}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: aiConfig.model,
+        messages: [
+          { role: 'system', content: '你是消息改写助手。用户会告诉你他想表达的意思，你帮他改写成得体、自然的消息。只输出改写后的消息，不要加任何解释。保持语言一致（中文输入输出中文）。' },
+          { role: 'user', content: intent },
+        ],
+        max_tokens: 200,
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+    const data = await resp.json()
+    return data.choices?.[0]?.message?.content?.trim() ?? null
+  } catch {
+    return null
+  }
+}
+
+export async function aiDetectIntent(message: string): Promise<{
+  type: string
+  summary: string
+  suggestedActions: { label: string; response: string }[]
+} | null> {
+  try {
+    const resp = await fetch(`${aiConfig.url}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: aiConfig.model,
+        messages: [
+          { role: 'system', content: '分析收到的消息，判断意图。输出严格 JSON 格式：{"type":"invitation|question|request|greeting|general","summary":"一句话描述","suggestedActions":[{"label":"按钮文字","response":"回复内容"}]}。最多3个按钮。' },
+          { role: 'user', content: message },
+        ],
+        max_tokens: 300,
+        temperature: 0.3,
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+    const data = await resp.json()
+    const text = data.choices?.[0]?.message?.content ?? ''
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) return JSON.parse(jsonMatch[0])
+    return null
+  } catch {
+    return null
+  }
 }
 
 // ============================================================
