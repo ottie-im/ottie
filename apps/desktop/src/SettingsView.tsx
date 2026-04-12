@@ -4,6 +4,8 @@ import { useAppStore } from './store'
 import { OttieAvatar, OttieAgentSelector, OttieDevicePanel } from '@ottie-im/ui'
 import type { AgentInfo, DeviceInfo } from '@ottie-im/ui'
 import { getProfile, setDisplayName, setAvatar, unblockUser, getMatrix, getAgent, logout } from './services'
+import { applyTheme } from './themes'
+import type { ThemeId } from './themes'
 
 const MATRIX_URL = import.meta.env.VITE_MATRIX_URL ?? 'https://ottie.claws.company'
 
@@ -345,6 +347,38 @@ export function SettingsView() {
             (a as any).sendCommand?.(cmd)
           } catch {}
         }} />)}
+
+        {/* 主题 */}
+        {card(
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>外观</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {([
+                { id: 'light' as ThemeId, label: '☀️ 浅色', bg: '#fff', border: '#e9edef' },
+                { id: 'dark' as ThemeId, label: '🌙 深色', bg: '#1e1e2e', border: '#313244' },
+                { id: 'system' as ThemeId, label: '💻 跟随系统', bg: 'linear-gradient(135deg, #fff 50%, #1e1e2e 50%)', border: '#8696a0' },
+              ]).map(t => {
+                const currentTheme = (localStorage.getItem('ottie_theme') ?? 'light') as ThemeId
+                const isActive = currentTheme === t.id
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => { applyTheme(t.id); useAppStore.getState().setTheme(t.id) }}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: '8px', textAlign: 'center',
+                      cursor: 'pointer', fontSize: '13px',
+                      border: isActive ? '2px solid var(--ottie-green)' : `1px solid ${t.border}`,
+                      background: t.id === 'system' ? undefined : t.bg,
+                      color: t.id === 'dark' ? '#cdd6f4' : 'var(--text-primary)',
+                    }}
+                  >
+                    {t.label}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 手机连接 */}
         {card(

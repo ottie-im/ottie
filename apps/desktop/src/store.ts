@@ -98,6 +98,10 @@ interface AppState {
   // Command palette
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
+
+  // Theme
+  theme: 'light' | 'dark' | 'system'
+  setTheme: (theme: 'light' | 'dark' | 'system') => void
 }
 
 export interface ChatMessage {
@@ -255,4 +259,8 @@ export const useAppStore = create<AppState>((set) => ({
   // Command palette
   commandPaletteOpen: false,
   setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
+
+  // Theme
+  theme: (localStorage.getItem('ottie_theme') as any) ?? 'light',
+  setTheme: (theme) => set({ theme }),
 }))

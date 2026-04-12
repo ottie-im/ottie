@@ -5,6 +5,7 @@ import { MainLayout } from './MainLayout'
 import { SettingsView } from './SettingsView'
 import { SetupGuide } from './SetupGuide'
 import { CommandPalette } from './components/CommandPalette'
+import { applyTheme, getStoredTheme, initThemeListener } from './themes'
 import { login, register, startSync, setPresence, tryAutoLogin, initAgent } from './services'
 
 export function App() {
@@ -19,6 +20,13 @@ export function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const [autoLoginDone, setAutoLoginDone] = useState(false)
+
+  // Init theme on startup
+  useEffect(() => {
+    const theme = getStoredTheme()
+    applyTheme(theme)
+    return initThemeListener(theme)
+  }, [])
 
   // Try auto-login on startup (only after setup is complete)
   useEffect(() => {
