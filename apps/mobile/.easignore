@@ -1,0 +1,18 @@
+# Monorepo root files (we're a standalone app for EAS)
+../../node_modules
+../../packages
+../../apps/desktop
+../../.git
+../../.turbo
+
+# Local build artifacts
+node_modules
+.expo
+dist
+ios
+android
+*.tsbuildinfo
+
+# Dev files
+.turbo
+*.log

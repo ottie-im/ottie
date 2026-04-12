@@ -15,7 +15,10 @@
     },
     "ios": {
       "bundleIdentifier": "com.ottie.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.ottie.app",
@@ -24,9 +27,19 @@
         "backgroundColor": "#25D366"
       }
     },
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "plugins": [
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-router"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "888b1e3a-48b6-4cc8-83bd-4ec37629fb9a"
+      }
+    },
+    "owner": "gdbzriww"
   }
 }
