@@ -21,6 +21,22 @@ export function App() {
   const [error, setError] = useState<string | undefined>()
   const [autoLoginDone, setAutoLoginDone] = useState(false)
 
+  // Cmd+K 命令面板（hooks 必须在所有 early return 之前）
+  const { commandPaletteOpen, setCommandPaletteOpen } = useAppStore()
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandPaletteOpen(!commandPaletteOpen)
+      }
+      if (e.key === 'Escape' && commandPaletteOpen) {
+        setCommandPaletteOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [commandPaletteOpen, setCommandPaletteOpen])
+
   // Init theme on startup
   useEffect(() => {
     const theme = getStoredTheme()
@@ -114,22 +130,6 @@ export function App() {
       </div>
     )
   }
-
-  // Cmd+K 全局快捷键
-  const { commandPaletteOpen, setCommandPaletteOpen } = useAppStore()
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setCommandPaletteOpen(!commandPaletteOpen)
-      }
-      if (e.key === 'Escape' && commandPaletteOpen) {
-        setCommandPaletteOpen(false)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [commandPaletteOpen, setCommandPaletteOpen])
 
   // Phase C+D: Login or Main app
   return (

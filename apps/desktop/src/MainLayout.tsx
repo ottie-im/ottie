@@ -576,23 +576,19 @@ export function MainLayout() {
 
         {/* Files tab content */}
         {tabs.find(t => t.id === activeTabId)?.type === 'files' && (
-          <div style={{ flex: 1, display: 'flex' }}>
-            <div style={{ width: '260px', borderRight: '1px solid var(--border, #e9edef)', overflowY: 'auto' }}>
-              <FileTree rootPath={process.cwd?.() ?? '/'} onOpenFile={(path) => {
-                const store = useAppStore.getState()
-                store.addTab({ type: 'files' as const, title: path.split('/').pop() ?? 'File' })
-              }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <FileViewer filePath={process.cwd?.() ?? '/'} />
-            </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #667781)', fontFamily: 'var(--font-family)' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📁</div>
+            <div style={{ fontSize: '16px', fontWeight: 500, marginBottom: '8px', color: 'var(--text-primary, #111b21)' }}>文件浏览器</div>
+            <div style={{ fontSize: '14px' }}>在 Tauri 桌面端运行时可浏览本地文件</div>
           </div>
         )}
 
-        {/* Git tab content */}
+        {/* Git/Agent tab content */}
         {tabs.find(t => t.id === activeTabId)?.type === 'agent' && (
-          <div style={{ flex: 1 }}>
-            <GitPanel cwd={process.cwd?.() ?? '/'} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary, #667781)', fontFamily: 'var(--font-family)' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔀</div>
+            <div style={{ fontSize: '16px', fontWeight: 500, marginBottom: '8px', color: 'var(--text-primary, #111b21)' }}>Git 面板</div>
+            <div style={{ fontSize: '14px' }}>在 Tauri 桌面端运行时可查看 Git 状态</div>
           </div>
         )}
 
