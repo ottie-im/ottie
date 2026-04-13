@@ -10,6 +10,10 @@ import type { ConversationItem } from '@ottie-im/ui'
 import type { SuggestedAction, DecisionRequest } from '@ottie-im/contracts'
 import { TabBar } from './components/TabBar'
 import { TerminalView } from './components/TerminalView'
+import { FileTree } from './components/FileTree'
+import { FileViewer } from './components/FileViewer'
+import { GitPanel } from './components/GitPanel'
+import { ContextMeter } from './components/ContextMeter'
 import {
   sendMessage, getMessages, onMessage, getRooms, getFriends,
   getSession, getAgent, searchUsers, sendFriendRequest,
@@ -567,6 +571,28 @@ export function MainLayout() {
         {tabs.find(t => t.id === activeTabId)?.type === 'terminal' && (
           <div style={{ flex: 1 }}>
             <TerminalView />
+          </div>
+        )}
+
+        {/* Files tab content */}
+        {tabs.find(t => t.id === activeTabId)?.type === 'files' && (
+          <div style={{ flex: 1, display: 'flex' }}>
+            <div style={{ width: '260px', borderRight: '1px solid var(--border, #e9edef)', overflowY: 'auto' }}>
+              <FileTree rootPath={process.cwd?.() ?? '/'} onOpenFile={(path) => {
+                const store = useAppStore.getState()
+                store.addTab({ type: 'files' as const, title: path.split('/').pop() ?? 'File' })
+              }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <FileViewer filePath={process.cwd?.() ?? '/'} />
+            </div>
+          </div>
+        )}
+
+        {/* Git tab content */}
+        {tabs.find(t => t.id === activeTabId)?.type === 'agent' && (
+          <div style={{ flex: 1 }}>
+            <GitPanel cwd={process.cwd?.() ?? '/'} />
           </div>
         )}
 

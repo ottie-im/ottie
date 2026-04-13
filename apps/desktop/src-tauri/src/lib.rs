@@ -631,6 +631,217 @@ fn get_agent_output(
 }
 
 // ============================================================
+// File System — FileTree / FileViewer 需要
+// ============================================================
+
+#[derive(serde::Serialize)]
+struct FileEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+}
+
+#[tauri::command]
+fn read_directory(path: String) -> Result<Vec<FileEntry>, String> {
+    let entries = std::fs::read_dir(&path).map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for entry in entries {
+        let Ok(entry) = entry else { continue };
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') { continue } // 隐藏文件跳过
+        let path = entry.path().to_string_lossy().to_string();
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        result.push(FileEntry { name, path, is_dir });
+    }
+    Ok(result)
+}
+
+#[tauri::command]
+fn read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("读取失败: {}", e))
+}
+
+// ============================================================
+// Git — GitPanel 需要
+// ============================================================
+
+#[derive(serde::Serialize)]
+struct GitStatusResult {
+    branch: String,
+    changed: Vec<GitChangedFile>,
+    ahead: u32,
+    behind: u32,
+}
+
+#[derive(serde::Serialize)]
+struct GitChangedFile {
+    path: String,
+    status: String,
+}
+
+#[tauri::command]
+fn git_status(cwd: String) -> Result<GitStatusResult, String> {
+    let branch = Command::new("git")
+        .args(["branch", "--show-current"])
+        .current_dir(&cwd).env("PATH", full_path())
+        .output().map_err(|e| e.to_string())?;
+    let branch_name = String::from_utf8_lossy(&branch.stdout).trim().to_string();
+
+    let status = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&cwd).env("PATH", full_path())
+        .output().map_err(|e| e.to_string())?;
+    let changed: Vec<GitChangedFile> = String::from_utf8_lossy(&status.stdout)
+        .lines()
+        .filter(|l| l.len() > 3)
+        .map(|l| GitChangedFile {
+            status: l[..2].trim().to_string(),
+            path: l[3..].to_string(),
+        })
+        .collect();
+
+    Ok(GitStatusResult { branch: branch_name, changed, ahead: 0, behind: 0 })
+}
+
+#[tauri::command]
+fn git_branches(cwd: String) -> Result<Vec<String>, String> {
+    let output = Command::new("git")
+        .args(["branch", "--list", "--format=%(refname:short)"])
+        .current_dir(&cwd).env("PATH", full_path())
+        .output().map_err(|e| e.to_string())?;
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+}
+
+#[tauri::command]
+fn git_diff(cwd: String, file: Option<String>) -> Result<String, String> {
+    let mut args = vec!["diff".to_string()];
+    if let Some(f) = file { args.push(f); }
+    let output = Command::new("git")
+        .args(&args)
+        .current_dir(&cwd).env("PATH", full_path())
+        .output().map_err(|e| e.to_string())?;
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[tauri::command]
+fn git_commit(cwd: String, message: String) -> Result<(), String> {
+    Command::new("git").args(["add", "-A"])
+        .current_dir(&cwd).env("PATH", full_path())
+        .output().map_err(|e| e.to_string())?;
+    let output = Command::new("git").args(["commit", "-m", &message])
+        .current_dir(&cwd).env("PATH", full_path())
+        .output().map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn git_switch_branch(cwd: String, branch: String) -> Result<(), String> {
+    let output = Command::new("git").args(["checkout", &branch])
+        .current_dir(&cwd).env("PATH", full_path())
+        .output().map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+
+// ============================================================
+// Terminal — 简化版（无 PTY，用 Command 模拟）
+// ============================================================
+
+#[tauri::command]
+fn spawn_terminal(cwd: String) -> Result<String, String> {
+    // 简化实现：返回一个 terminal ID，实际 PTY 需要 portable-pty crate
+    let id = uuid::Uuid::new_v4().to_string();
+    // TODO: 用 portable-pty 实现完整终端
+    Ok(id)
+}
+
+#[tauri::command]
+fn write_terminal(_terminal_id: String, _data: String) -> Result<(), String> {
+    // TODO: 写入 PTY stdin
+    Ok(())
+}
+
+#[tauri::command]
+fn kill_terminal(_terminal_id: String) -> Result<(), String> {
+    // TODO: kill PTY 进程
+    Ok(())
+}
+
+// ============================================================
+// Schedule — 定时任务
+// ============================================================
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct ScheduleEntry {
+    id: String,
+    cron: String,
+    provider: String,
+    prompt: String,
+    cwd: String,
+    enabled: bool,
+    last_run: Option<String>,
+}
+
+fn schedules_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+    let dir = format!("{}/.ottie", home);
+    let _ = std::fs::create_dir_all(&dir);
+    format!("{}/schedules.json", dir)
+}
+
+fn load_schedules() -> Vec<ScheduleEntry> {
+    std::fs::read_to_string(schedules_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_schedules(schedules: &[ScheduleEntry]) {
+    let _ = std::fs::write(schedules_path(), serde_json::to_string_pretty(schedules).unwrap_or_default());
+}
+
+#[tauri::command]
+fn create_schedule(cron: String, provider: String, prompt: String, cwd: String) -> Result<(), String> {
+    let mut schedules = load_schedules();
+    schedules.push(ScheduleEntry {
+        id: uuid::Uuid::new_v4().to_string(),
+        cron, provider, prompt, cwd,
+        enabled: true, last_run: None,
+    });
+    save_schedules(&schedules);
+    Ok(())
+}
+
+#[tauri::command]
+fn list_schedules() -> Vec<ScheduleEntry> {
+    load_schedules()
+}
+
+#[tauri::command]
+fn delete_schedule(id: String) -> Result<(), String> {
+    let mut schedules = load_schedules();
+    schedules.retain(|s| s.id != id);
+    save_schedules(&schedules);
+    Ok(())
+}
+
+#[tauri::command]
+fn toggle_schedule(id: String, enabled: bool) -> Result<(), String> {
+    let mut schedules = load_schedules();
+    if let Some(s) = schedules.iter_mut().find(|s| s.id == id) {
+        s.enabled = enabled;
+    }
+    save_schedules(&schedules);
+    Ok(())
+}
+
+// ============================================================
 // App entry point
 // ============================================================
 
@@ -658,6 +869,20 @@ pub fn run() {
             list_agents,
             cancel_agent,
             get_agent_output,
+            read_directory,
+            read_file,
+            git_status,
+            git_branches,
+            git_diff,
+            git_commit,
+            git_switch_branch,
+            spawn_terminal,
+            write_terminal,
+            kill_terminal,
+            create_schedule,
+            list_schedules,
+            delete_schedule,
+            toggle_schedule,
         ])
         .setup(|app| {
             // DevTools: Cmd+Option+I 可以打开（已启用 devtools feature）

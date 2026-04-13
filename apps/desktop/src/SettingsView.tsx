@@ -6,6 +6,7 @@ import type { AgentInfo, DeviceInfo } from '@ottie-im/ui'
 import { getProfile, setDisplayName, setAvatar, unblockUser, getMatrix, getAgent, logout } from './services'
 import { applyTheme } from './themes'
 import type { ThemeId } from './themes'
+import { SchedulePanel } from './components/SchedulePanel'
 
 const MATRIX_URL = import.meta.env.VITE_MATRIX_URL ?? 'https://ottie.claws.company'
 
@@ -412,6 +413,9 @@ export function SettingsView() {
             )}
           </div>
         )}
+
+        {/* 定时任务 */}
+        {card(<SchedulePanel />)}
 
         {/* Blocked Users */}
         {card(

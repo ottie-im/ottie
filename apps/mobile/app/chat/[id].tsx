@@ -7,6 +7,7 @@ import { ApprovalCard } from '../../src/components/ApprovalCard'
 import { DecisionCard } from '../../src/components/DecisionCard'
 import { VoiceButton } from '../../src/components/VoiceButton'
 import { ImageBubble } from '../../src/components/ImageBubble'
+import { MarkdownBubble } from '../../src/components/MarkdownBubble'
 import { speakText } from '../../src/tts'
 let ImagePicker: any = null
 try { ImagePicker = require('expo-image-picker') } catch {}
@@ -210,7 +211,7 @@ export default function ChatScreen() {
         }}
         activeOpacity={0.7}
       >
-        <Text style={s.bubbleText}>{item.body}</Text>
+        <MarkdownBubble text={item.body} isOutgoing={item.type === 'agent-output'} />
         <View style={s.bubbleFooter}>
           <Text style={s.bubbleTime}>{item.time}</Text>
           {item.type === 'incoming' && (

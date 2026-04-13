@@ -25,6 +25,8 @@ export function CommandPalette() {
     { id: 'settings', label: '打开设置', icon: '⚙️', shortcut: '⌘,', handler: () => { setCurrentView('settings'); close() } },
     { id: 'chat', label: '返回聊天', icon: '💬', handler: () => { setCurrentView('chat'); close() } },
     { id: 'search', label: '搜索消息', icon: '🔍', shortcut: '⌘F', handler: () => { close() } },
+    { id: 'files', label: '打开文件浏览器', icon: '📁', handler: () => { addTab({ type: 'files', title: '文件' }); close() } },
+    { id: 'git', label: '打开 Git 面板', icon: '🔀', handler: () => { addTab({ type: 'agent', title: 'Git' }); close() } },
     { id: 'theme-light', label: '浅色主题', icon: '☀️', handler: () => { document.documentElement.setAttribute('data-theme', 'light'); close() } },
     { id: 'theme-dark', label: '深色主题', icon: '🌙', handler: () => { document.documentElement.setAttribute('data-theme', 'dark'); close() } },
   ]
